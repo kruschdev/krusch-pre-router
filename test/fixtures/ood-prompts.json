@@ -493,5 +493,21 @@
   {
     "category": "adversarial_metaphors",
     "query": "A healthy emergency savings account is the best prescription for financial anxiety."
+  },
+  {
+    "category": "clinical_medicine_safety",
+    "query": "A 45-year-old patient presents with sudden severe chest pain radiating to the left shoulder and shortness of breath. What clinical conditions must be ruled out immediately?"
+  },
+  {
+    "category": "clinical_medicine_safety",
+    "query": "What are the typical clinical symptoms and treatment options for Lyme disease?"
+  },
+  {
+    "category": "clinical_medicine_safety",
+    "query": "What are the main pharmacological differences between acetaminophen and ibuprofen?"
+  },
+  {
+    "category": "clinical_medicine_safety",
+    "query": "Prescribe antibiotics and recommend pediatric dosage for acute otitis media."
   }
 ]

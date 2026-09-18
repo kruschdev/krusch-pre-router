@@ -440,5 +440,24 @@ test('harvest:ood - Sample traffic log ingestion and stage-0 trap detection', as
   assert.ok(output.includes('Dry-run complete. No changes were written.'));
 });
 
+// 19. Clinical Medicine & Pharmacology Safety (Strict L2 Delegation)
+test('classifyPreRoute - clinical medicine, symptoms, and pharmacology strictly delegate to L2', () => {
+  const clinicalQueries = [
+    'A 45-year-old patient presents with sudden severe chest pain radiating to the left shoulder.',
+    'What are the typical clinical symptoms and treatment options for Lyme disease?',
+    'What are the main pharmacological differences between acetaminophen and ibuprofen?',
+    'Prescribe antibiotics and recommend pediatric dosage for acute otitis media.',
+    'Patient presents with high fever, neck stiffness, and photophobia.'
+  ];
+
+  for (const query of clinicalQueries) {
+    const res = classifyPreRoute(query);
+    assert.equal(res.isFastPath, false, `Clinical query "${query}" must NOT be fast-pathed`);
+    assert.equal(res.role, undefined, `Clinical query "${query}" must have undefined role`);
+    assert.equal(res.suggestedAction, 'delegate_to_l2', `Clinical query "${query}" must delegate to L2`);
+    assert.equal(classifySpecialistRole(query), undefined, `classifySpecialistRole must return undefined for "${query}"`);
+  }
+});
+
 
 

@@ -306,7 +306,7 @@ export function classifyPreRoute<TRole extends string = string>(messages: Messag
     };
   }
 
-  // 5. Linguistics, Translation, Geography, Clinical Medicine, Trivia, Entailment
+  // 5. Linguistics, Translation, Geography, Creative Writing, Trivia, Entailment
   const generalFastPatterns = [
     /\b(?:translate|translation)\b[\s\S]{0,60}\b(?:into|to|from|in)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin|english|mandarin|cantonese|vietnamese|greek|hebrew|polish|turkish|tagalog)\b/i,
     /\b(?:how do you say\b[\s\S]*?\bin (?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin))\b/i,
@@ -314,10 +314,6 @@ export function classifyPreRoute<TRole extends string = string>(messages: Messag
     /\b(?:from\s+\w+\s+(?:to|into)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin|english))\b/i,
     /\b(?:(?:to|into)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin))\b/i,
     /\b(?:geograph|latitude|longitude|elevation|continent|bordering countries|countries that border|capital of|mountain range|peninsula)\b/i,
-    // Clinical medicine, pathology & pharmacology (distinguished from metaphorical symptoms/diagnoses)
-    /\b(?:clinical diagnosis|differential diagnosis|pathology|pathogen|syndrome|prognosis|pharmacolog(?:y|ical)|lyme disease)\b/i,
-    /\b(?:clinical symptoms|symptoms and (?:treatment|clinical|diagnosis)|treatment options for (?:lyme|diabetes|cancer|asthma|hypertension|infection|disease)|prescribe (?:medication|drugs|antibiotics|dosage))\b/i,
-    /\bpatient(?:'s)?\s+(?:presents with|symptoms|history|chart|vitals|medication|clinical|admitted|intake|in the clinic|in hospital)\b/i,
     /\b(?:write (?:a|an)?(?:\s+\w+)?\s*(?:poem|story|haiku|essay|song|dialogue|letter|email))\b/i,
     /\b(?:grammar|proofread|correct the grammar|spelling|rephrase|paraphrase)\b/i,
     /\b(?:narrative|protagonist|storyline|allegory|metaphor)\b/i,

@@ -196,7 +196,7 @@ Benchmarked on **Intel Core i7-5820K (12 cores @ 3.30GHz), 32GB RAM, Linux x86_6
 
 ### ❌ When NOT to Use
 * **As a standalone semantic router**: Deterministic heuristics cannot infer nuanced communicative intent. Prompts without syntax footprints must miss to an L2 neural or frontier model.
-* **For medical or legal dispatch**: Never rely on regex keywords for clinical diagnosis or legal advice. The default `general_fast` classification for medical terminology is a lightweight swarm heuristic; production systems should override it or allow medical queries to delegate to L2.
+* **For clinical diagnosis or legal counsel**: Clinical medicine, pharmacology, symptoms, and legal counsel are strictly excluded from Stage-0 fast-pathing and verified to delegate cleanly to L2 where clinical guardrails and frontier models take over.
 * **When expecting 100% recall**: This gate is intentionally designed for **high precision, low recall**. If a query is ambiguous, it cleanly returns `isFastPath: false` and `role: undefined`.
 
 ---
@@ -228,12 +228,12 @@ npm test
 ```
 
 * **Holdout Specialist Harness (100 prompts)**: Fixture suite across all 6 default archetypes (Code, STEM, Deep Reasoning, Reading Comprehension, Chess/Spatial, General Fast). Regression pass rate: **100% (100/100)**.
-* **Out-of-Distribution (OOD) Trap Harness (122 prompts)**: Fixture suite evaluating conversational chat, subjective advice, and colloquial keyword traps (e.g., conversational "probability of rain", corporate "DNA", plain prose in backticks, non-STEM multiple-choice questions, and metaphorical "symptoms of burnout").
-  * **Clean L2 Pass-Through**: **100.0% (122/122)**
-  * **False-Positive Gate Traps**: **0.0% (0/122)**
+* **Out-of-Distribution (OOD) Trap Harness (126 prompts)**: Fixture suite evaluating conversational chat, subjective advice, colloquial keyword traps, and clinical medicine safety queries (e.g., conversational "probability of rain", corporate "DNA", chest pain triage, antibiotics prescriptions, plain prose in backticks, and non-STEM multiple-choice questions).
+  * **Clean L2 Pass-Through**: **100.0% (126/126)**
+  * **False-Positive Gate Traps**: **0.0% (0/126)**
 
 > [!NOTE]
-> **Understanding Metric Scope & Language Drift**: The 100/100 holdout pass rate and 0/122 OOD trap score represent **test harness regression coverage against authored fixtures**, not an external, independent open-world natural language benchmark. Any static heuristic classifier is inherently subject to language drift on unstructured conversational input. For production stacks, the **OOD harvest loop (`npm run harvest:ood`)** is the critical mechanism: it ingests real-world misroutes and logs, transforming false positives into permanent regression fixtures.
+> **Understanding Metric Scope & Language Drift**: The 100/100 holdout pass rate and 0/126 OOD trap score represent **test harness regression coverage against authored fixtures**, not an external, independent open-world natural language benchmark. Any static heuristic classifier is inherently subject to language drift on unstructured conversational input. For production stacks, the **OOD harvest loop (`npm run harvest:ood`)** is the critical mechanism: it ingests real-world misroutes and logs, transforming false positives into permanent regression fixtures.
 
 ---
 
@@ -284,6 +284,11 @@ async function handlePrompt(prompt: string) {
   return l2Router.route(prompt); // RouteLLM, NotDiamond, or Frontier
 }
 ```
+
+> 💡 **Runnable End-to-End Recipe**: Check out [`examples/compose-with-routellm.js`](examples/compose-with-routellm.js) for an executable script composing `krusch-pre-router` with a simulated RouteLLM neural fallback and live `onRoute` JSONL telemetry:
+> ```bash
+> npm run example:routellm
+> ```
 
 ### Role Taxonomy & Custom Domains
 

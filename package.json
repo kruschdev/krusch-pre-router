@@ -1,7 +1,10 @@
 {
   "name": "krusch-pre-router",
   "version": "1.0.0",
-  "description": "Deterministic Regex Fast-Path Pre-Router & In-Memory Memoization Table for LLM Swarms. Intercepts structured code, SQL, math, and closed-world queries in CPU microseconds (<15µs) for $0.00.",
+  "description": "Deterministic Stage-0 Syntactic Gate & Exact-Match LRU Memoization Table for LLM Swarms. Intercepts structured code, SQL, math, and closed-world queries in CPU microseconds (<10µs) for $0.00.",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -29,6 +32,7 @@
     "test": "node --test",
     "prebench": "npm run build",
     "bench": "node benchmark/latency.bench.js",
+    "example:routellm": "node examples/compose-with-routellm.js",
     "harvest:ood": "node scripts/harvest-ood.js",
     "test:harvest": "node scripts/harvest-ood.js test/fixtures/sample-traffic.jsonl --dry-run",
     "prepublishOnly": "npm run build && npm test"

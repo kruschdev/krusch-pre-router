@@ -93,20 +93,20 @@ const HOLDOUT_DATASET = [
   { prompt: 'In paragraph 3 of the text, what metaphor does the narrator use to describe the winter morning in Prague?', expected: 'comprehension_rc' },
   { prompt: 'Based on the document provided, is it true or false that the company achieved carbon neutrality by 2024?', expected: 'comprehension_rc' },
 
-  // --- 5. General Fast, Translation, Medicine & Geography (15 prompts) ---
+  // --- 5. General Fast, Translation, Creative Writing & Geography (15 prompts) ---
   { prompt: 'Translate this paragraph from English into Spanish: "The sun was rising over the misty hills as the expedition departed."', expected: 'general_fast' },
   { prompt: 'How do you say "Where is the nearest train station?" in Japanese?', expected: 'general_fast' },
   { prompt: 'Translate into German: "We need to finalize the quarterly review before the board meeting on Friday."', expected: 'general_fast' },
   { prompt: 'What is the capital of Mongolia and what is its average elevation above sea level?', expected: 'general_fast' },
-  { prompt: 'A 45-year-old patient presents with sudden severe chest pain radiating to the left shoulder and shortness of breath. What clinical conditions must be ruled out immediately?', expected: 'general_fast' },
+  { prompt: 'Translate this short phrase into Portuguese: "Have a wonderful weekend with your family."', expected: 'general_fast' },
   { prompt: 'Name the countries that border Switzerland and describe its primary mountain ranges.', expected: 'general_fast' },
   { prompt: 'Write a short haiku about autumn leaves falling in Kyoto.', expected: 'general_fast' },
   { prompt: 'Please proofread and correct the grammar of this introductory email: "Dear Mr Smith, I hope this email finds you well. Me and my team has reviewed the proposal."', expected: 'general_fast' },
-  { prompt: 'What are the typical clinical symptoms and treatment options for Lyme disease?', expected: 'general_fast' },
+  { prompt: 'Who wrote the dystopian novel "Brave New World" published in 1932?', expected: 'general_fast' },
   { prompt: 'Who was the primary architect behind the design of St. Peter\'s Basilica in Rome?', expected: 'general_fast' },
   { prompt: 'Translate this French sentence into English: "Il vaut mieux prévenir que guérir."', expected: 'general_fast' },
   { prompt: 'Write an opening dialogue between two astronauts waking up from cryosleep near Saturn.', expected: 'general_fast' },
-  { prompt: 'What are the main pharmacological differences between acetaminophen and ibuprofen?', expected: 'general_fast' },
+  { prompt: 'Rephrase this sentence to make it more concise and formal: "Basically what we are trying to do is make sure that everyone gets the information."', expected: 'general_fast' },
   { prompt: 'Identify the geographical coordinates and highest elevation of Mount Kilimanjaro.', expected: 'general_fast' },
   { prompt: 'Does sentence A imply sentence B? Sentence A: "Alice visited Paris in June." Sentence B: "Alice has been to France."', expected: 'general_fast' },
 
