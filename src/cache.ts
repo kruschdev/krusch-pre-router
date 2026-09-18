@@ -1,7 +1,16 @@
 import { classifyPreRoute, PreRouteResult, ClassifierOptions, Message } from './classifier.js';
 
+export interface RouteTelemetry {
+  prompt: Message[] | string;
+  result: PreRouteResult;
+  fromCache: boolean;
+  namespace?: string;
+  timestamp: number;
+}
+
 export interface CacheOptions {
   maxSize?: number; // Maximum entries in the LRU cache (default: 1000)
+  namespace?: string; // Optional namespace prefix to isolate keys across routers/tenants
 }
 
 /**
@@ -10,24 +19,36 @@ export interface CacheOptions {
  */
 export class PreRouteCache {
   private readonly maxSize: number;
+  private readonly _namespace?: string;
   private readonly cache: Map<string, PreRouteResult>;
 
   constructor(options?: CacheOptions) {
     this.maxSize = options?.maxSize ?? 1000;
+    this._namespace = options?.namespace;
     this.cache = new Map();
+  }
+
+  public get namespace(): string | undefined {
+    return this._namespace;
   }
 
   /**
    * Normalizes prompt text or message sequence for resilient cache keying.
-   * Preserves message roles and compacts consecutive whitespace.
+   * Preserves message roles, compacts consecutive whitespace, and prefixes
+   * namespace if configured.
    */
-  public normalizeKey(prompt: Message[] | string): string {
+  public normalizeKey(prompt: Message[] | string, namespaceOverride?: string): string {
+    let baseKey: string;
     if (Array.isArray(prompt)) {
-      return prompt
+      baseKey = prompt
         .map(m => `${m.role}:${m.content.trim().replace(/\s+/g, ' ')}`)
         .join('\n');
+    } else {
+      baseKey = prompt.trim().replace(/\s+/g, ' ');
     }
-    return prompt.trim().replace(/\s+/g, ' ');
+
+    const ns = namespaceOverride ?? this._namespace;
+    return ns ? `[${ns}]${baseKey}` : baseKey;
   }
 
   public get(prompt: Message[] | string): PreRouteResult | undefined {
@@ -72,6 +93,8 @@ export class PreRouteCache {
 
 export interface PreRouterOptions extends ClassifierOptions {
   cache?: boolean | CacheOptions;
+  namespace?: string;
+  onRoute?: (telemetry: RouteTelemetry) => void;
 }
 
 export interface PreRouter {
@@ -81,13 +104,17 @@ export interface PreRouter {
 }
 
 /**
- * Creates an L1 Pre-Router instance configured with an optional LRU cache
- * and custom routing heuristics.
+ * Creates an L1 Pre-Router instance configured with an optional LRU cache,
+ * non-blocking telemetry tap, and custom routing heuristics.
  */
 export function createPreRouter(options?: PreRouterOptions): PreRouter {
   const enableCache = options?.cache !== false;
+  const cacheOptions: CacheOptions | undefined = typeof options?.cache === 'object'
+    ? { namespace: options?.namespace, ...options.cache }
+    : (options?.namespace ? { namespace: options.namespace } : undefined);
+
   const cache = enableCache 
-    ? new PreRouteCache(typeof options?.cache === 'object' ? options.cache : undefined)
+    ? new PreRouteCache(cacheOptions)
     : null;
 
   return {
@@ -95,13 +122,42 @@ export function createPreRouter(options?: PreRouterOptions): PreRouter {
     classify(messages: Message[] | string): PreRouteResult {
       if (cache) {
         const cached = cache.get(messages);
-        if (cached) return cached;
+        if (cached) {
+          if (options?.onRoute) {
+            try {
+              options.onRoute({
+                prompt: messages,
+                result: { ...cached },
+                fromCache: true,
+                namespace: options.namespace ?? cache.namespace,
+                timestamp: Date.now()
+              });
+            } catch {
+              // Swallow telemetry listener errors so pre-router execution is never interrupted
+            }
+          }
+          return cached;
+        }
       }
 
       const result = classifyPreRoute(messages, options);
 
       if (cache) {
         cache.set(messages, result);
+      }
+
+      if (options?.onRoute) {
+        try {
+          options.onRoute({
+            prompt: messages,
+            result: { ...result },
+            fromCache: false,
+            namespace: options.namespace ?? cache?.namespace,
+            timestamp: Date.now()
+          });
+        } catch {
+          // Swallow telemetry listener errors
+        }
       }
 
       return { ...result };

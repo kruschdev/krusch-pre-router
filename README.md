@@ -205,6 +205,16 @@ Factory creating a stateful pre-router instance with an integrated LRU cache.
 ```typescript
 interface PreRouterOptions extends ClassifierOptions {
   cache?: boolean | CacheOptions; // Cache enabled by default (maxSize: 1000)
+  namespace?: string;             // Optional namespace prefix to isolate cache across tenants/configs
+  onRoute?: (telemetry: RouteTelemetry) => void; // Non-blocking audit hook for logging traffic to disk/SQLite
+}
+
+interface RouteTelemetry {
+  prompt: Message[] | string;
+  result: PreRouteResult;
+  fromCache: boolean;
+  namespace?: string;
+  timestamp: number;
 }
 
 interface PreRouter {
@@ -213,6 +223,33 @@ interface PreRouter {
   clearCache(): void;
 }
 ```
+
+#### Production Telemetry & Audit Tap
+
+Use `onRoute` to log Stage-0 traffic directly to an audit database or JSONL stream without impacting routing latency (errors inside the hook are automatically swallowed to ensure zero router downtime):
+
+```javascript
+const router = createPreRouter({
+  namespace: 'customer-support-agent',
+  onRoute: ({ prompt, result, fromCache, timestamp }) => {
+    // Ship to asynchronous telemetry / logger
+    telemetryLogger.log({ prompt, result, fromCache, timestamp });
+  }
+});
+```
+
+#### Living OOD Regression Suite & Harvest CLI
+
+Capture false positives from production logs and automatically feed them back into the OOD regression suite:
+
+```bash
+# Ingest production logs (JSONL) and append newly discovered traps to test/fixtures/ood-prompts.json
+npm run harvest:ood -- /path/to/production-traffic.jsonl
+
+# Dry-run inspection without modifying fixtures
+npm run harvest:ood -- /path/to/production-traffic.jsonl --dry-run
+```
+
 
 ### `classifyPreRoute(prompt, options?): PreRouteResult`
 

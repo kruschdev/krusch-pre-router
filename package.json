@@ -27,6 +27,7 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "test": "node --test",
     "bench": "node benchmark/latency.bench.js",
+    "harvest:ood": "node scripts/harvest-ood.js",
     "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [

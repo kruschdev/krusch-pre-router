@@ -50,8 +50,9 @@ node /home/krusch/homelab/projects/krusch-context-mcp/scripts/snapshot.js /home/
 ## 🛠️ Build, Test & Benchmark Commands
 
 - **Build**: `npm run build` (tsup generates ESM and CJS bundles in `dist/`)
-- **Test**: `npm test` (Runs all 14 unit, holdout, and OOD wrong-specialist evaluation suites)
+- **Test**: `npm test` (Runs all 17 unit, holdout, and OOD wrong-specialist evaluation suites)
 - **Benchmark**: `npm run bench` (Microsecond benchmark with hardware telemetry and percentile latencies)
+- **Harvest OOD**: `npm run harvest:ood -- <path-to-logs.jsonl>` (Harvests Stage-0 false-positive traps from production logs into `ood-prompts.json`)
 
 ---
 
@@ -60,4 +61,6 @@ node /home/krusch/homelab/projects/krusch-context-mcp/scripts/snapshot.js /home/
 1. **Miss Semantics**: Prompts lacking deterministic domain signals MUST return `isFastPath: false` and `role: undefined`. Never fallback to `'factual_stem'` or any specialist role.
 2. **Defensive Cloning**: `PreRouteCache` and `createPreRouter` must clone results on `get()` and `set()` so caller mutations do not corrupt cached results.
 3. **Key Normalization**: `PreRouteCache.normalizeKey()` handles both `string` and `Message[]`. For `Message[]`, it preserves message roles (`${role}:${content}`) to prevent conversation collisions.
-4. **Local Lakebase Storage**: Per-project SQLite memory is located at `.agent/memory.db` and is ignored by git.
+4. **Cache Isolation**: `PreRouteCache` supports an optional `namespace` prefix to prevent collisions when multiple routers or tenant profiles share a cache instance.
+5. **Telemetry Resilience**: `onRoute` telemetry callbacks are non-blocking and isolated in `try/catch` so logger/disk failures never disrupt prompt classification.
+6. **Local Lakebase Storage**: Per-project SQLite memory is located at `.agent/memory.db` and is ignored by git.

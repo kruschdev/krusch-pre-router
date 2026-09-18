@@ -17,5 +17,7 @@ export {
   CacheOptions,
   createPreRouter,
   PreRouter,
-  PreRouterOptions
+  PreRouterOptions,
+  RouteTelemetry
 } from './cache.js';
+

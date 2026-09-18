@@ -181,3 +181,81 @@ test('PreRouteCache - Message[] role differentiation prevents cross-role cache c
   assert.equal(key1, 'user:What is 2 + 2?');
   assert.equal(key2, 'assistant:What is 2 + 2?');
 });
+
+// 9. Cache Namespacing Isolation
+test('PreRouteCache - Namespace isolation prevents collision across configurations', () => {
+  const cacheA = new PreRouteCache({ namespace: 'tenant-alpha' });
+  const cacheB = new PreRouteCache({ namespace: 'tenant-beta' });
+  const cacheDefault = new PreRouteCache();
+
+  const prompt = 'What is the sum of 10 and 20?';
+  const keyA = cacheA.normalizeKey(prompt);
+  const keyB = cacheB.normalizeKey(prompt);
+  const keyDefault = cacheDefault.normalizeKey(prompt);
+
+  assert.equal(keyA, '[tenant-alpha]What is the sum of 10 and 20?');
+  assert.equal(keyB, '[tenant-beta]What is the sum of 10 and 20?');
+  assert.equal(keyDefault, 'What is the sum of 10 and 20?');
+  assert.notEqual(keyA, keyB);
+  assert.notEqual(keyA, keyDefault);
+
+  // Cross-tenant router isolation test
+  const routerA = createPreRouter({ namespace: 'profile-a' });
+  const routerB = createPreRouter({ namespace: 'profile-b' });
+
+  assert.equal(routerA.cache?.namespace, 'profile-a');
+  assert.equal(routerB.cache?.namespace, 'profile-b');
+
+  const q = 'Write a Python function';
+  routerA.classify(q);
+  assert.ok(routerA.cache?.has(q));
+  // routerB should not have routerA's entry even though prompt is identical
+  assert.equal(routerB.cache?.has(q), false);
+});
+
+// 10. Non-blocking Telemetry Hook (onRoute)
+test('createPreRouter - onRoute non-blocking telemetry hook fires on hit and miss', () => {
+  const events = [];
+  const router = createPreRouter({
+    namespace: 'audit-test',
+    onRoute: (telemetry) => {
+      events.push(telemetry);
+    }
+  });
+
+  const query = 'Translate "bonjour" into English';
+
+  // 1st call: Miss path from cache
+  const res1 = router.classify(query);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].fromCache, false);
+  assert.equal(events[0].prompt, query);
+  assert.equal(events[0].result.role, 'general_fast');
+  assert.equal(events[0].namespace, 'audit-test');
+  assert.ok(events[0].timestamp > 0);
+
+  // 2nd call: Hit path from cache
+  const res2 = router.classify(query);
+  assert.equal(events.length, 2);
+  assert.equal(events[1].fromCache, true);
+  assert.equal(events[1].result.role, 'general_fast');
+  assert.equal(events[1].namespace, 'audit-test');
+  assert.deepEqual(res1, res2);
+});
+
+// 11. Resilience: Telemetry Hook Exceptions are Swallowed
+test('createPreRouter - onRoute exceptions are swallowed and do not disrupt routing', () => {
+  const router = createPreRouter({
+    onRoute: () => {
+      throw new Error('Simulated external logger / disk failure');
+    }
+  });
+
+  // Routing should succeed cleanly despite error thrown inside onRoute
+  assert.doesNotThrow(() => {
+    const res = router.classify('Write a quicksort in Rust');
+    assert.equal(res.role, 'code');
+    assert.equal(res.isFastPath, true);
+  });
+});
+

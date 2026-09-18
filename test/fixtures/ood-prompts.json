@@ -1,0 +1,402 @@
+[
+  {
+    "category": "everyday_conversational",
+    "query": "Good morning! How are you doing today?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "What are some good ways to stay motivated when working remotely?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "Can you suggest some fun games for a dinner party with friends?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "I am feeling anxious about an upcoming presentation, any tips?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "What should I cook for dinner tonight if I have chicken and rice?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "Recommend a good book for someone who likes historical fiction."
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "How can I improve my posture while sitting at a desk all day?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "What are some habits of highly disciplined individuals?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "Can you give me ideas for a relaxing weekend trip in the Pacific Northwest?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "How do I ask my supervisor for a raise professionally and politely?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "How can I make my morning routine more peaceful and intentional?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "What should I pack for a two-week vacation to Japan in October?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "How do I choose between two equally attractive career opportunities?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "What are some thoughtful housewarming gifts for first-time homeowners?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "How can a small local bakery differentiate itself from big supermarket chains?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "What makes a podcast engaging to first-time listeners?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "Help me outline the pros and cons of moving from a large city to a smaller town."
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "What are effective ways to organize a home pantry and reduce food waste?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "What should someone consider before adopting a rescue dog?"
+  },
+  {
+    "category": "everyday_conversational",
+    "query": "Tips for learning to play the acoustic guitar as an adult with limited free time."
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "What is the nature of personal identity and self-awareness over time?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "Why do humans find symmetry aesthetically pleasing across different cultures?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "How has the rise of the internet changed the way teenagers socialize?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "Is it ever morally justifiable to tell a white lie to protect someone's feelings?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "What role does empathy play in effective executive leadership?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "How did the concept of leisure time develop after the Industrial Revolution?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "What are the cultural differences in how grief and mourning are expressed globally?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "Can art truly exist without an intended meaning or message from its creator?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "Why do people experience profound nostalgia for eras they never lived through?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "How do human memories subtly change each time we recall them?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "What are the philosophical arguments surrounding free will and determinism?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "Why do humans form such deep emotional attachments to domesticated pets?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "How did coffeehouses in 17th-century London shape early public democratic discourse?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "What makes a debate moderator fair, authoritative, and impartial?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "How do colors influence mood and psychological perception in architectural spaces?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "What is the evolutionary benefit of human humor and laughter in social groups?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "How did the Mediterranean diet and lifestyle historically originate?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "Why do people find solace and psychological comfort in predictable daily routines?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "How can individuals cultivate curiosity and open-mindedness as lifelong habits?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "What are the differences between high-context and low-context communication styles in business?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "How did the bicycle revolutionize women's mobility and independence in the late 19th century?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "What timeless principles make classic typography and graphic layout feel harmonious?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "Explain the aesthetic appeal of slow cinema and meditative storytelling in film."
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "How do urban parks and green canopies impact the mental health of city residents?"
+  },
+  {
+    "category": "philosophical_subjective",
+    "query": "Why do people enjoy listening to melancholic music when they are feeling down?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "Brainstorm ten creative, memorable names for an eco-friendly outdoor clothing brand."
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "Give me constructive, encouraging feedback on my proposal for a neighborhood community garden."
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "How can teachers gently encourage shy students to participate in group discussions?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "What are healthy and constructive ways to express frustration in a workplace relationship?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "Tips for starting a small organic herb garden on an apartment balcony with morning sun."
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "How can remote and distributed teams foster spontaneous, casual social connections?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "What should a complete beginner know before training for their first 5K fun run?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "What makes a great mentor, and how can young professionals find and approach one?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "How can freelancers set firm, professional boundaries with demanding clients?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "What are the most common psychological pitfalls when starting an ambitious personal project?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "How can someone become a more active, patient, and empathetic listener during disputes?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "What are creative and personal ways to celebrate a couple's milestone wedding anniversary?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "Why do music enthusiasts continue to collect vintage vinyl records in the streaming era?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "How to handle constructive criticism gracefully when you poured weeks into a project."
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "What should prospective tenants carefully inspect when touring an apartment for rent?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "Strategies for maintaining deep focus and preventing fatigue in an open-plan office."
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "How can amateur street photographers develop their own unique visual perspective?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "How can families capture and preserve the oral stories of their grandparents?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "What are thoughtful and heartfelt ways to thank a colleague who mentored you through a rough quarter?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "How did the modern concept of the two-day weekend legally and socially come to be?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "What critical factors should you evaluate before transitioning from corporate employment to freelancing?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "How can individuals declutter their digital lives and reduce notification overload?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "What are effective techniques for managing pre-stage adrenaline before giving a speech?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "How can parents support teenagers in developing strong media literacy and critical evaluation skills?"
+  },
+  {
+    "category": "brainstorming_advice",
+    "query": "What are memorable, low-stress ways to host an informal housewarming gathering?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "The direct sales force achieved all their quarterly targets ahead of schedule."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "We are organizing a mass mobilization of community volunteers for the park clean-up."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "What are the current trends in sustainable interior decorating this season?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "There was intense local resistance to the proposed commercial rezoning project."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "1. First, take a deep breath and listen carefully to what your partner is saying."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "2. Next, acknowledge their perspective before explaining your own view."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "He felt like a helpless pawn in a ruthless corporate restructuring game."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "What is the secret formula for maintaining joyful, long-lasting friendships?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "The primary function of restorative sleep is still being actively investigated."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Can you suggest a creative solution to our team's meeting scheduling conflicts?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "We need to build a better pipeline of qualified prospective customer leads."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "She took a balanced approach to investing her leisure time across varied hobbies."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "The doctor kindly advised me to get plenty of rest and drink hot tea."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "In the grand scheme of things, every team member plays an essential role."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "How can we convert casual social media followers into loyal brand advocates?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Translate our company mission into an inspiring vision that rallies employees."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "What are the rules for running an effective, energizing brainstorming workshop?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Can you summarize the plot of Pride and Prejudice in two engaging paragraphs?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "What is your favorite memory of a summer evening spent outdoors?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "How do you calculate the emotional toll of a prolonged conflict between close friends?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "We observed a dramatic acceleration in user adoption following our rebrand."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "She had high kinetic energy and brought tremendous enthusiasm to the committee."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "The committee reached an equilibrium after a heated debate on the annual budget."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "He described the feeling of burnout as an inescapable mental entropy."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Our customer service team needs a new playbook for handling difficult escalations."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Can you recommend five classic movies from the 1990s that everyone should watch?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "What are the best walking shoes for European cobblestone streets in the rainy season?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "How can I organize my personal digital photos so they are easy to find years later?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "What is the history of tea drinking ceremonies in Japanese culture?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Tell me an uplifting story about neighbors helping each other during a winter storm."
+  }
+]
