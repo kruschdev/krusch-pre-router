@@ -6,6 +6,7 @@ export {
   evaluateComplexityScore,
   pruneText,
   PreRouteResult,
+  DefaultSpecialistRole,
   SpecialistRole,
   Message,
   ClassifierOptions,

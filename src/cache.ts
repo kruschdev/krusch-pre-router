@@ -1,8 +1,8 @@
-import { classifyPreRoute, PreRouteResult, ClassifierOptions, Message } from './classifier.js';
+import { classifyPreRoute, PreRouteResult, ClassifierOptions, Message, SpecialistRole } from './classifier.js';
 
-export interface RouteTelemetry {
+export interface RouteTelemetry<TRole extends string = SpecialistRole> {
   prompt: Message[] | string;
-  result: PreRouteResult;
+  result: PreRouteResult<TRole>;
   fromCache: boolean;
   namespace?: string;
   timestamp: number;
@@ -17,10 +17,10 @@ export interface CacheOptions {
  * High-performance, zero-dependency in-memory LRU cache for prompt classifications.
  * Provides < 1 microsecond O(1) lookups for identical, whitespace-normalized prompts.
  */
-export class PreRouteCache {
+export class PreRouteCache<TRole extends string = SpecialistRole> {
   private readonly maxSize: number;
   private readonly _namespace?: string;
-  private readonly cache: Map<string, PreRouteResult>;
+  private readonly cache: Map<string, PreRouteResult<TRole>>;
 
   constructor(options?: CacheOptions) {
     this.maxSize = options?.maxSize ?? 1000;
@@ -51,7 +51,7 @@ export class PreRouteCache {
     return ns ? `[${ns}]${baseKey}` : baseKey;
   }
 
-  public get(prompt: Message[] | string): PreRouteResult | undefined {
+  public get(prompt: Message[] | string): PreRouteResult<TRole> | undefined {
     const key = this.normalizeKey(prompt);
     const item = this.cache.get(key);
     if (!item) return undefined;
@@ -62,7 +62,7 @@ export class PreRouteCache {
     return { ...item };
   }
 
-  public set(prompt: Message[] | string, result: PreRouteResult): void {
+  public set(prompt: Message[] | string, result: PreRouteResult<TRole>): void {
     const key = this.normalizeKey(prompt);
 
     if (this.cache.has(key)) {
@@ -91,15 +91,15 @@ export class PreRouteCache {
   }
 }
 
-export interface PreRouterOptions extends ClassifierOptions {
+export interface PreRouterOptions<TRole extends string = SpecialistRole> extends ClassifierOptions<TRole> {
   cache?: boolean | CacheOptions;
   namespace?: string;
-  onRoute?: (telemetry: RouteTelemetry) => void;
+  onRoute?: (telemetry: RouteTelemetry<TRole>) => void;
 }
 
-export interface PreRouter {
-  classify(messages: Message[] | string): PreRouteResult;
-  cache: PreRouteCache | null;
+export interface PreRouter<TRole extends string = SpecialistRole> {
+  classify(messages: Message[] | string): PreRouteResult<TRole>;
+  cache: PreRouteCache<TRole> | null;
   clearCache(): void;
 }
 
@@ -107,19 +107,19 @@ export interface PreRouter {
  * Creates a Stage-0 Pre-Router instance configured with an optional LRU cache,
  * non-blocking telemetry tap, and custom routing heuristics.
  */
-export function createPreRouter(options?: PreRouterOptions): PreRouter {
+export function createPreRouter<TRole extends string = SpecialistRole>(options?: PreRouterOptions<TRole>): PreRouter<TRole> {
   const enableCache = options?.cache !== false;
   const cacheOptions: CacheOptions | undefined = typeof options?.cache === 'object'
     ? { namespace: options?.namespace, ...options.cache }
     : (options?.namespace ? { namespace: options.namespace } : undefined);
 
   const cache = enableCache 
-    ? new PreRouteCache(cacheOptions)
+    ? new PreRouteCache<TRole>(cacheOptions)
     : null;
 
   return {
     cache,
-    classify(messages: Message[] | string): PreRouteResult {
+    classify(messages: Message[] | string): PreRouteResult<TRole> {
       if (cache) {
         const cached = cache.get(messages);
         if (cached) {

@@ -3,32 +3,37 @@ export interface Message {
   content: string;
 }
 
-export type SpecialistRole = 
+export type DefaultSpecialistRole = 
   | 'general_fast'     // Fast generalist (translation, geography, open-ended trivia, narrative)
   | 'factual_stem'     // Factual & STEM (scientific knowledge, arithmetic, formal mathematics)
   | 'code'             // Code specialist (code generation, syntax analysis, debugging, refactoring)
-  | 'reasoning_fast'   // Fast algorithmic reasoning (logic puzzles, deterministic execution)
   | 'reasoning_deep'   // Deep analytical reasoning (financial filings, formal proofs, economics)
   | 'games_spatial'    // Spatial & discrete state engines (chess, board games, FEN/PGN evaluation)
   | 'comprehension_rc';// Grounded reading comprehension (passage analysis, document Q&A)
 
-export interface CustomSpecialistRule {
-  role: SpecialistRole;
+/**
+ * Specialist domain role. Defaults to the 6 core archetypes, while
+ * supporting arbitrary custom domain strings via customSpecialistRules.
+ */
+export type SpecialistRole = DefaultSpecialistRole | (string & {});
+
+export interface CustomSpecialistRule<TRole extends string = string> {
+  role: TRole;
   pattern: RegExp;
 }
 
-export interface PreRouteResult {
+export interface PreRouteResult<TRole extends string = string> {
   isFastPath: boolean;
-  role?: SpecialistRole;
+  role?: DefaultSpecialistRole | TRole;
   confidence: 'high' | 'borderline' | 'unstructured';
   complexityScore: number;
   suggestedAction: 'dispatch_specialist' | 'delegate_to_l2';
 }
 
-export interface ClassifierOptions {
+export interface ClassifierOptions<TRole extends string = string> {
   lengthThreshold?: number; // String length, not tokens, for speed. Default 2000.
   customRules?: RegExp[];   // Custom Regex patterns to mark a prompt as complex
-  customSpecialistRules?: CustomSpecialistRule[]; // Custom regex overrides for specialist routing
+  customSpecialistRules?: CustomSpecialistRule<TRole>[]; // Custom regex overrides for specialist routing
   prunePreRouting?: boolean; // If true, clean conversational filler and whitespace before length evaluation
   knowledgeBoundaryGating?: boolean; // If true, prioritize closed-world self-contained routing (default true)
 }
@@ -193,7 +198,7 @@ export function isComplexPrompt(messages: Message[] | string, options?: Classifi
  * suitable for immediate fast-path dispatch, or whether it should be delegated
  * to an L2 neural/embedding router or frontier model.
  */
-export function classifyPreRoute(messages: Message[] | string, options?: ClassifierOptions): PreRouteResult {
+export function classifyPreRoute<TRole extends string = string>(messages: Message[] | string, options?: ClassifierOptions<TRole>): PreRouteResult<TRole> {
   let fullText = Array.isArray(messages) 
     ? messages.map(m => m.content).join('\n') 
     : messages;
@@ -408,10 +413,9 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
 }
 
 /**
- * Classifies a prompt into one of 7 domain specialist roles optimized
- * for sub-50ms multi-model swarm routing.
+ * Classifies a prompt into one of the 6 core domain specialist roles (or custom role).
  * @deprecated Use classifyPreRoute() or createPreRouter() instead for full PreRouteResult metadata.
  */
-export function classifySpecialistRole(messages: Message[] | string, options?: ClassifierOptions): SpecialistRole | undefined {
+export function classifySpecialistRole<TRole extends string = string>(messages: Message[] | string, options?: ClassifierOptions<TRole>): (DefaultSpecialistRole | TRole) | undefined {
   return classifyPreRoute(messages, options).role;
 }

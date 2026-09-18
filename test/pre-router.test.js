@@ -341,4 +341,33 @@ test('classifyPreRoute - large payloads (>10KB) evaluate safely without latency 
   assert.ok(elapsedMs < 5.0, `Expected elapsed time < 5ms, got ${elapsedMs}ms`);
 });
 
+// 16. Custom Domain Roles: Arbitrary string taxonomies via customSpecialistRules
+test('createPreRouter - supports custom domain role taxonomies and overrides', () => {
+  const router = createPreRouter({
+    customSpecialistRules: [
+      { role: 'billing_ops', pattern: /\b(?:stripe invoice|chargeback|mrr|refund request)\b/i },
+      { role: 'compliance_legal', pattern: /\b(?:gdpr deletion|ccpa request|subprocessor agreement)\b/i }
+    ]
+  });
+
+  const billingRes = router.classify('Please check the stripe invoice for customer 451.');
+  assert.equal(billingRes.isFastPath, true);
+  assert.equal(billingRes.role, 'billing_ops');
+  assert.equal(billingRes.confidence, 'high');
+
+  const legalRes = router.classify('We received a gdpr deletion request from an EU resident.');
+  assert.equal(legalRes.isFastPath, true);
+  assert.equal(legalRes.role, 'compliance_legal');
+
+  // Verify caching of custom roles
+  const cachedBilling = router.classify('Please check the stripe invoice for customer 451.');
+  assert.equal(cachedBilling.role, 'billing_ops');
+
+  // Unmatched queries still cleanly delegate to L2 with undefined role
+  const missRes = router.classify('Tell me a bedtime story about dragons.');
+  assert.equal(missRes.isFastPath, false);
+  assert.equal(missRes.role, undefined);
+  assert.equal(missRes.suggestedAction, 'delegate_to_l2');
+});
+
 

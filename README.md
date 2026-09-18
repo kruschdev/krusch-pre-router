@@ -138,10 +138,10 @@ Adapt the pre-router to your application's domain with custom regex overrides:
 ```javascript
 const router = createPreRouter({
   customSpecialistRules: [
-    // Fast-path internal billing/finance queries
-    { role: 'reasoning_deep', pattern: /\b(?:stripe invoice|chargeback|mrr|arr)\b/i },
-    // Route customer support ticket tags
-    { role: 'general_fast', pattern: /\b(?:ticket #\d+|support refund|account password)\b/i }
+    // Fast-path internal billing/finance queries directly to your billing specialist
+    { role: 'billing_ops', pattern: /\b(?:stripe invoice|chargeback|mrr|arr)\b/i },
+    // Route customer support ticket tags directly to support triage
+    { role: 'support_triage', pattern: /\b(?:ticket #\d+|support refund|account password)\b/i }
   ]
 });
 ```
@@ -219,6 +219,49 @@ Large pasted documents, multi-megabyte error dumps, or log files can degrade reg
 | **Execution Environment** | **Anywhere (Edge, Workers, Browser)** | Server / Python container | Server / Cloud API |
 
 *\* Note: Classification latency measures the time required to choose a route. End-to-end response latency includes downstream model inference.*
+
+---
+
+## 🔌 Architecture: Stage-0 Front Gate to Downstream Routers
+
+`krusch-pre-router` is an in-process, zero-dependency **front gate (syntactic reverse proxy)**, not an adapter SDK or client wrapper for downstream routers. It does not embed RouteLLM, NotDiamond, or vendor SDKs.
+
+Anything that consumes `PreRouteResult` can sit behind it:
+
+```typescript
+import { createPreRouter } from 'krusch-pre-router';
+
+const router = createPreRouter();
+
+async function handlePrompt(prompt: string) {
+  const route = router.classify(prompt);
+
+  if (route.isFastPath) {
+    // ⚡ Fast-path hit: Dispatch immediately to your mapped specialist
+    return dispatchSpecialist(route.role, prompt);
+  }
+
+  // 🔍 Stage-0 miss (isFastPath: false, role: undefined):
+  // Delegate unopinionated traffic to your neural router or frontier model
+  return l2Router.route(prompt); // RouteLLM, NotDiamond, or Frontier
+}
+```
+
+### Role Taxonomy & Custom Domains
+
+* **Agnostic Miss Contract**: On misses, `role` is `undefined` and `suggestedAction` is `'delegate_to_l2'`. Downstream routers receive traffic the gate did not claim without requiring any role translation.
+* **Default Specialist Taxonomy**: Provides 6 core archetypes (`code`, `factual_stem`, `reasoning_deep`, `games_spatial`, `comprehension_rc`, `general_fast`). Map these roles to your specific models or provider endpoints.
+* **Custom Domain Taxonomies**: Define arbitrary string roles via `customSpecialistRules` without forking or shoehorning:
+
+```typescript
+const router = createPreRouter({
+  customSpecialistRules: [
+    { role: 'billing_ops', pattern: /\b(?:stripe invoice|chargeback|mrr)\b/i },
+    { role: 'legal_compliance', pattern: /\b(?:gdpr deletion|subprocessor)\b/i },
+    { role: 'claude-3-5-haiku', pattern: /\b(?:quick translation|format json)\b/i }
+  ]
+});
+```
 
 ---
 
