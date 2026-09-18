@@ -444,6 +444,7 @@ test('harvest:ood - Sample traffic log ingestion and stage-0 trap detection', as
 test('classifyPreRoute - clinical medicine, symptoms, and pharmacology strictly delegate to L2', () => {
   const clinicalQueries = [
     'A 45-year-old patient presents with sudden severe chest pain radiating to the left shoulder.',
+    'patient presents with crushing chest pain',
     'What are the typical clinical symptoms and treatment options for Lyme disease?',
     'What are the main pharmacological differences between acetaminophen and ibuprofen?',
     'Prescribe antibiotics and recommend pediatric dosage for acute otitis media.',
