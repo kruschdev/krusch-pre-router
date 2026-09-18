@@ -15,7 +15,7 @@ export interface CacheOptions {
 
 /**
  * High-performance, zero-dependency in-memory LRU cache for prompt classifications.
- * Provides < 1 microsecond O(1) lookups for identical or template-derived prompts.
+ * Provides < 1 microsecond O(1) lookups for identical, whitespace-normalized prompts.
  */
 export class PreRouteCache {
   private readonly maxSize: number;
@@ -104,7 +104,7 @@ export interface PreRouter {
 }
 
 /**
- * Creates an L1 Pre-Router instance configured with an optional LRU cache,
+ * Creates a Stage-0 Pre-Router instance configured with an optional LRU cache,
  * non-blocking telemetry tap, and custom routing heuristics.
  */
 export function createPreRouter(options?: PreRouterOptions): PreRouter {

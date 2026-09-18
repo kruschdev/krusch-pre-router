@@ -91,7 +91,7 @@ const MAX_PRE_ROUTE_SCAN_CHARS = 8000;
 
 /**
  * Continuous complexity scorer [0.0, 1.0].
- * Provides fine-grained probability for speculative hedging or routing gates.
+ * Provides a continuous heuristic complexity index [0.0, 1.0] for speculative hedging or routing gates.
  */
 export function evaluateComplexityScore(messages: Message[] | string, options?: ClassifierOptions): number {
   const lengthThreshold = options?.lengthThreshold || 2000;
@@ -187,7 +187,7 @@ export function isComplexPrompt(messages: Message[] | string, options?: Classifi
 }
 
 /**
- * L1 Pre-Router Gate.
+ * Deterministic Stage-0 Pre-Router Gate.
  * Evaluates in <15 microseconds whether an incoming prompt has a deterministic
  * structural or domain footprint (code, SQL, math, chess, closed-world transform)
  * suitable for immediate fast-path dispatch, or whether it should be delegated
@@ -227,7 +227,7 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
     }
   }
 
-  // 1. Paragraph Reading Comprehension & Verification (qwen3-235b)
+  // 1. Paragraph Reading Comprehension & Grounded Verification
   const isReadingComprehension = 
     /\b(?:based on (?:the|this|that)?\s*(?:provided|following|above|below)?\s*["']?(?:text|passage|article|excerpt|document|context|paragraph|historical account|case study)["']?)/i.test(scanText) ||
     /\b(?:according to (?:the|this|that)?\s*(?:provided|following|above|below)?\s*["']?(?:text|passage|article|excerpt|document|context|historical account|case study)["']?)/i.test(scanText) ||
@@ -250,7 +250,7 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
     };
   }
 
-  // 2. Chess & Spatial Board Games (Qwen3-Coder-Next via games_spatial)
+  // 2. Chess & Spatial Board Games (State engines & discrete coordinates)
   const isChess = 
     /\b(?:chess|checkmate|stalemate|castling|fen|pgn|en passant|zugzwang)\b/i.test(scanText) ||
     /\b(?:board position|legal moves|pawn move|knight move|bishop move|rook move|queen move|king move)\b/i.test(scanText) ||
@@ -269,7 +269,7 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
     };
   }
 
-  // 3. Code Generation, Refactoring & Algorithm Synthesis (Qwen3-Coder-Next)
+  // 3. Code Generation, Refactoring & Algorithm Synthesis
   const isCode = 
     // Markdown code blocks with explicit language identifier or inline code constructs
     /```(?:bash|sh|zsh|python|py|javascript|js|typescript|ts|rust|rs|go|golang|c|cpp|c\+\+|c#|cs|java|html|css|json|yaml|yml|sql|dockerfile|graphql|ruby|php|swift|kotlin|scala|r|lua|perl|markdown|md|shell|wasm|toml|ini|diff)\b/i.test(scanText) ||
@@ -303,7 +303,7 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
     };
   }
 
-  // 4. Financial Statements, Balance Sheets & Formal Proofs (deepseek-v4-pro)
+  // 4. Financial Statements, Balance Sheets & Formal Proofs (Deep analytical reasoning)
   const isDeepReasoning = 
     /\b(?:net income|operating income|operating margin|gross margin|fiscal year|cash flow[s]?|diluted eps|earnings per share|balance sheet|sec filing|10-k|10-q|ebitda|ebit|cagr|amortization|depreciation|discounted cash flow|dcf model|valuation model|p\/e ratio|return on equity|roe|roic|capital expenditure|capex|free cash flow|wacc|working capital|covenant breach)\b/i.test(scanText) ||
     /\b(?:formal (?:deductive )?logic proof|formal mathematical proof|deductive reasoning|proof by contradiction|mathematical proof|game theory|nash equilibrium|prisoner's dilemma|pareto optimal(?:ity|)?|counterfactual analysis|formal logic proof|first-order logic|syllogism proof|grim trigger|tit-for-tat|first fundamental theorem)\b/i.test(scanText);
@@ -318,8 +318,7 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
     };
   }
 
-  // 5. Linguistics, Translation, Geography, Medicine, Open-ended Trivia, Entailment
-  // (Empirically superior on google/gemini-3.1-flash-lite)
+  // 5. Linguistics, Translation, Geography, Clinical Medicine, Trivia, Entailment
   const generalFastPatterns = [
     /\b(?:translate|translation)\b[\s\S]{0,60}\b(?:into|to|from|in)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin|english|mandarin|cantonese|vietnamese|greek|hebrew|polish|turkish|tagalog)\b/i,
     /\b(?:how do you say\b[\s\S]*?\bin (?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin))\b/i,
