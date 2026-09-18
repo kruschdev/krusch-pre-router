@@ -1,7 +1,7 @@
 {
   "name": "krusch-pre-router",
   "version": "1.0.0",
-  "description": "The L1 Cache & Fast-Path Pre-Router for LLM Architectures. Intercepts structured code, SQL, math, and closed-world queries in CPU microseconds (<15µs) for $0.00.",
+  "description": "Deterministic Regex Fast-Path Pre-Router & In-Memory Memoization Table for LLM Swarms. Intercepts structured code, SQL, math, and closed-world queries in CPU microseconds (<15µs) for $0.00.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

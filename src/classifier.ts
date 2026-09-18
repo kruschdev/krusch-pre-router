@@ -45,7 +45,10 @@ export function detectKnowledgeBoundary(text: string): 'closed' | 'open' {
 
   // Closed-world signals: self-contained transformations and lookup queries
   const closedWorldPatterns = [
-    /^(?:translate|convert|calculate|format|prettify|lint|capitalize|lowercase|reverse)\b/i,
+    /^(?:format|prettify|lint|capitalize|lowercase|reverse)\b/i,
+    /^(?:translate)\b[\s\S]{0,60}\b(?:into|to|in)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin|english)\b/i,
+    /^(?:convert)\s+[\d.]+\s*[a-zA-Z°\s]{1,25}\s+(?:to|into)\s+[a-zA-Z°\s]{1,25}$/i,
+    /\b(?:convert\s+\d+\s*(?:miles|km|celsius|fahrenheit|kg|lbs|usd|eur|gbp|meters|feet|inches|cm|gallons|liters)\s+to\s+[a-z]+)\b/i,
     /\b(?:regex|regular expression|json format|csv format|unit conversion|celsius to fahrenheit|miles to km)\b/i,
     /^(?:what is|solve|calculate)\s+[\d\s+\-*/^().=]+[?]?$/i, // Direct arithmetic expressions with optional ?
     /\b(?:dictionary definition|synonym for|antonym for|spelling of)\b/i
@@ -238,7 +241,8 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
     /\b(?:board position|legal moves|pawn move|knight move|bishop move|rook move|queen move|king move)\b/i.test(fullText) ||
     /\b(?:sudoku grid|tic-tac-toe|connect four|gomoku)\b/i.test(fullText) ||
     /\b[a-h][1-8]-[a-h][1-8]\b/.test(fullText) ||
-    /(?:1\.|\b(?:e4|d4|nf3|c4))\s+[a-z0-9+#=-]+/i.test(fullText);
+    /(?:^|\s)1\.\s*(?:e4|d4|c4|Nf3|g3|f4|Nc3|b3|[a-h][34])\b/i.test(fullText) ||
+    /\b(?:e4\s+(?:e5|c5|e6|c6)|d4\s+(?:d5|Nf6|g6)|Nf3\s+(?:d5|Nf6))\b/i.test(fullText);
 
   if (isChess) {
     return {
@@ -255,7 +259,7 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
     // Markdown code blocks
     /```/i.test(fullText) ||
     // Intent to write / implement / refactor / debug / optimize code
-    /\b(?:write|create|implement|build|refactor|debug|fix|optimize|convert)\b[\s\S]{0,60}\b(?:code|script|function|class|method|algorithm|program|solution|api|endpoint|query|component|hook|test|handler|decorator|type|interface|schema|middleware|resolver|generator|workflow|pipeline|dockerfile|regex|callback|promise|async\/await|binary search|quicksort|sorting|bfs|dfs)\b/i.test(fullText) ||
+    /\b(?:write|create|implement|build|refactor|debug|fix|optimize|convert)\b[\s\S]{0,60}\b(?:code|script|function|class|method|algorithm|api|endpoint|sql query|component|hook|unit test|test suite|decorator|type|interface|database schema|middleware|resolver|generator|(?:ci\/cd|data|etl|build|deployment)\s+pipeline|dockerfile|regex|callback|promise|async\/await|binary search|quicksort|sorting|bfs|dfs)\b/i.test(fullText) ||
     /\b(?:how (?:do|can) I (?:implement|code|write|program|fix|debug|test|optimize|refactor))\b/i.test(fullText) ||
     /\b(?:fix this (?:code|bug|error|issue|exception|stack trace|syntax|crash|warning))\b/i.test(fullText) ||
     /\b(?:unit test|test suite|test case|pytest|jest|vitest|mocha|cargo test)\b/i.test(fullText) ||
@@ -264,8 +268,8 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
     // Language & Framework specific terms combined with coding keywords
     (/\b(?:typescript|javascript|python|rust|golang|c\+\+|cpp|c#|java|scala|kotlin|swift|ruby|php|react|vue|angular|svelte|next\.js|node\.js|express|fastapi|django|flask|graphql|dockerfile|github actions|kubernetes|k8s|css flexbox|css grid|tailwind|sql query|postgresql|sqlite|redis|mongodb)\b/i.test(fullText) &&
      /\b(?:error|bug|issue|exception|function|class|component|hook|query|schema|type|import|export|install|build|compile|syntax|loop|re-render|memory leak|thread|mutex|deadlock|concurrency|async|await|promise|callback|iterator|package|module|resolver|endpoint|route|layout|generic|workflow|search|sort|algorithm)\b/i.test(fullText)) ||
-    // Programming keywords and signatures
-    /\b(?:def\s+[a-zA-Z_]\w*|function\s+[a-zA-Z_]\w*|const\s+[a-zA-Z_]\w*\s*=|let\s+[a-zA-Z_]\w*\s*=|var\s+[a-zA-Z_]\w*\s*=|fn\s+[a-zA-Z_]\w*|func\s+[a-zA-Z_]\w*|class\s+[a-zA-Z_]\w*|public\s+(?:static\s+)?void|import\s+.*\s+from|from\s+.*\s+import|#include\s+<|require\(['"].*['"]\)|package\s+main|console\.log\(|println!|std::|fmt\.Println)\b/.test(fullText) ||
+    // Programming keywords and signatures (require parameter parentheses or assignment)
+    /\b(?:def\s+[a-zA-Z_]\w*\s*\(|function\s+[a-zA-Z_]\w*\s*\(|const\s+[a-zA-Z_]\w*\s*=|let\s+[a-zA-Z_]\w*\s*=|var\s+[a-zA-Z_]\w*\s*=|fn\s+[a-zA-Z_]\w*\s*\(|func\s+(?:\([a-zA-Z0-9_*\s]+\)\s*)?[a-zA-Z_]\w*\s*\(|class\s+[a-zA-Z_]\w*\s*(?:extends|implements|\{|\:)|public\s+(?:static\s+)?void|import\s+.*\s+from|from\s+.*\s+import|#include\s+<|require\(['"].*['"]\)|package\s+main|console\.log\(|println!|std::|fmt\.Println)\b/.test(fullText) ||
     // SQL DDL / DML
     /\b(?:SELECT\s+[\s\S]+?\s+FROM|INSERT\s+INTO|UPDATE\s+[\s\S]+?\s+SET|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE)\b/i.test(fullText) ||
     // React hooks (strictly case-sensitive)
@@ -301,13 +305,14 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
   // 5. Linguistics, Translation, Geography, Medicine, Open-ended Trivia, Entailment
   // (Empirically superior on google/gemini-3.1-flash-lite)
   const generalFastPatterns = [
-    /\b(?:translate|translation|translated|translating)\b/i,
+    /\b(?:translate|translation)\b[\s\S]{0,60}\b(?:into|to|from|in)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin|english|mandarin|cantonese|vietnamese|greek|hebrew|polish|turkish|tagalog)\b/i,
     /\b(?:how do you say\b[\s\S]*?\bin (?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin))\b/i,
     /\b(?:in (?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin):)\b/i,
     /\b(?:from\s+\w+\s+(?:to|into)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin|english))\b/i,
     /\b(?:(?:to|into)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin))\b/i,
     /\b(?:geograph|latitude|longitude|elevation|continent|bordering countries|countries that border|capital of|mountain range|peninsula)\b/i,
-    /\b(?:patient|symptom|clinic|diagnos|syndrome|treatment|disease|prescribe|prognosis|pharmacolog(?:y|ical)|lyme disease)\b/i,
+    /\b(?:symptom|clinic|diagnos|syndrome|disease|prescribe|prognosis|pharmacolog(?:y|ical)|lyme disease)\b/i,
+    /\bpatient(?:'s)?\s+(?:presents with|symptoms|history|condition|chart|diagnosis|care|vitals|health|medication|response|treatment|admitted|intake|in the clinic|in hospital)\b/i,
     /\b(?:write (?:a|an)?(?:\s+\w+)?\s*(?:poem|story|haiku|essay|song|dialogue|letter|email))\b/i,
     /\b(?:grammar|proofread|correct the grammar|spelling|rephrase|paraphrase)\b/i,
     /\b(?:narrative|protagonist|storyline|allegory|metaphor)\b/i,
@@ -342,8 +347,13 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
 
   // 6. Explicit STEM / Math / Logic / Science
   const isExplicitStem = 
-    /(?:\\frac|\\sum|\\sqrt|\\int|\\times|\\pm|equation|theorem|polynomial|integral|derivative|matrix|vector|logarithm|physics|chemistry|biology|astronomy|thermodynamics|quantum|velocity|acceleration|voltage|current|resistance|molecule|atom|gravit|calculus|algebra|geometry|trigonometry|logarithmic|exponential|mitochondria|photosynthesis|eukaryot|orbital|fluid flow|navier-stokes|stefan-boltzmann|heisenberg|half-life|carbon-14|kinetic energy|entropy|eigenvalue|eigenvector)\b/i.test(fullText) ||
-    /\b(?:utilitarianism|deontolog|epistemolog|syllogism|deductive logic|inductive logic|probability|calculate|derivative|integral|force|newtons|mass|acceleration|speed of sound|blackbody|dark energy|cosmological constant|mitosis|meiosis|dna|crispr)\b/i.test(fullText) ||
+    /(?:\\frac|\\sum|\\sqrt|\\int|\\times|\\pm|equation|theorem|polynomial|integral|derivative|matrix|vector space|logarithm|physics|chemistry|biology|astronomy|thermodynamics|quantum|velocity|voltage|electric current|electrical resistance|resistor|molecule|atom|gravitat\w*|gravity|black hole|calculus|algebra|geometry|trigonometry|logarithmic|exponential|mitochondri\w*|phosphorylation|atp synthesis|photosynthesis|eukaryot\w*|orbital|fluid flow|navier-stokes|stefan-boltzmann|heisenberg|half-life|carbon-14|linear equation|system of (?:linear )?equations|nitrogen cycle|phosphorus cycle|fungi|self-attention|freezing point|boiling point)\b/i.test(fullText) ||
+    /\b(?:acceleration\s+(?:due to gravity|vector|formula|down the (?:plane|incline)|of the (?:object|particle|block|mass|car))|angular acceleration|centripetal acceleration|m\/s\^?2|rate of acceleration|constant acceleration)\b/i.test(fullText) ||
+    /\bkinetic energy\b[\s\S]{0,50}\b(?:joules|kg|m\/s|velocity|mass|formula|calculate|object|particle|motion|potential energy|conservation of energy)\b/i.test(fullText) ||
+    /\b(?:thermodynamic entropy|entropy of the system|entropy change|shannon entropy|entropy and enthalpy|entropy increases|second law of thermodynamics)\b/i.test(fullText) ||
+    /\bentropy\b[\s\S]{0,40}\b(?:temperature|joules|second law|thermodynamics|boltzmann|state function|reversib)\b/i.test(fullText) ||
+    /\b(?:calculate|determine|find)\s+(?:the\s+)?(?:derivative|integral|eigenvalue|limit|probability|velocity|acceleration|kinetic energy|net force|gravitational force|voltage|work|entropy|half-life|concentration|molarity|percentage|hypotenuse|root|standard deviation|variance)\b/i.test(fullText) ||
+    /\b(?:utilitarianism|deontolog|epistemolog|syllogism|deductive logic|inductive logic|probability|newtons|(?:net|gravitational|centripetal)\s+force|(?:atomic|rest|molar)\s+mass|speed of sound|blackbody|dark energy|cosmological constant|mitosis|meiosis|dna|crispr)\b/i.test(fullText) ||
     /\b\d+\s*[+\-*/^=]\s*\d+\b/.test(fullText) ||
     hasOptions;
 
@@ -383,7 +393,8 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
 /**
  * Classifies a prompt into one of 7 domain specialist roles optimized
  * for sub-50ms multi-model swarm routing.
+ * @deprecated Use classifyPreRoute() or createPreRouter() instead for full PreRouteResult metadata.
  */
-export function classifySpecialistRole(messages: Message[] | string, options?: ClassifierOptions): SpecialistRole {
-  return classifyPreRoute(messages, options).role ?? 'factual_stem';
+export function classifySpecialistRole(messages: Message[] | string, options?: ClassifierOptions): SpecialistRole | undefined {
+  return classifyPreRoute(messages, options).role;
 }

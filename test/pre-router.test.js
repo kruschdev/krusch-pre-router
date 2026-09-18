@@ -141,3 +141,43 @@ test('createPreRouter - Stateful cached routing wrapper', () => {
   router.clearCache();
   assert.equal(router.cache.size, 0);
 });
+
+// 6. classifySpecialistRole Miss Behavior (No STEM fallback footgun)
+test('classifySpecialistRole - Returns undefined on conversational/unstructured queries', () => {
+  assert.equal(classifySpecialistRole('Hey, how are you today?'), undefined);
+  assert.equal(classifySpecialistRole('Tell me what you think about modern abstract art.'), undefined);
+  assert.equal(classifySpecialistRole('What advice do you have for unwinding after work?'), undefined);
+});
+
+// 7. Defensive Copying & Immutability Test
+test('PreRouteCache - Defensive cloning prevents cache corruption from caller mutation', () => {
+  const router = createPreRouter();
+  const q = 'Write a quicksort function in Go';
+
+  const res1 = router.classify(q);
+  assert.equal(res1.role, 'code');
+
+  // Attempt to mutate the returned result
+  res1.role = 'factual_stem';
+  res1.isFastPath = false;
+
+  // Verify that the cached result was NOT corrupted
+  const res2 = router.classify(q);
+  assert.equal(res2.role, 'code');
+  assert.equal(res2.isFastPath, true);
+});
+
+// 8. Message[] Role Differentiation in Cache Keys
+test('PreRouteCache - Message[] role differentiation prevents cross-role cache collision', () => {
+  const router = createPreRouter();
+
+  const userMsg = [{ role: 'user', content: 'What is 2 + 2?' }];
+  const assistantMsg = [{ role: 'assistant', content: 'What is 2 + 2?' }];
+
+  const key1 = router.cache?.normalizeKey(userMsg);
+  const key2 = router.cache?.normalizeKey(assistantMsg);
+
+  assert.notEqual(key1, key2);
+  assert.equal(key1, 'user:What is 2 + 2?');
+  assert.equal(key2, 'assistant:What is 2 + 2?');
+});

@@ -18,14 +18,19 @@ export class PreRouteCache {
   }
 
   /**
-   * Normalizes prompt text for resilient cache keying.
-   * Compacts consecutive whitespace and trims leading/trailing spaces.
+   * Normalizes prompt text or message sequence for resilient cache keying.
+   * Preserves message roles and compacts consecutive whitespace.
    */
-  public normalizeKey(prompt: string): string {
+  public normalizeKey(prompt: Message[] | string): string {
+    if (Array.isArray(prompt)) {
+      return prompt
+        .map(m => `${m.role}:${m.content.trim().replace(/\s+/g, ' ')}`)
+        .join('\n');
+    }
     return prompt.trim().replace(/\s+/g, ' ');
   }
 
-  public get(prompt: string): PreRouteResult | undefined {
+  public get(prompt: Message[] | string): PreRouteResult | undefined {
     const key = this.normalizeKey(prompt);
     const item = this.cache.get(key);
     if (!item) return undefined;
@@ -33,10 +38,10 @@ export class PreRouteCache {
     // Refresh LRU order (delete and re-insert at the end of the Map)
     this.cache.delete(key);
     this.cache.set(key, item);
-    return item;
+    return { ...item };
   }
 
-  public set(prompt: string, result: PreRouteResult): void {
+  public set(prompt: Message[] | string, result: PreRouteResult): void {
     const key = this.normalizeKey(prompt);
 
     if (this.cache.has(key)) {
@@ -49,10 +54,10 @@ export class PreRouteCache {
       }
     }
 
-    this.cache.set(key, result);
+    this.cache.set(key, { ...result });
   }
 
-  public has(prompt: string): boolean {
+  public has(prompt: Message[] | string): boolean {
     return this.cache.has(this.normalizeKey(prompt));
   }
 
@@ -88,22 +93,18 @@ export function createPreRouter(options?: PreRouterOptions): PreRouter {
   return {
     cache,
     classify(messages: Message[] | string): PreRouteResult {
-      const fullText = Array.isArray(messages) 
-        ? messages.map(m => m.content).join('\n') 
-        : messages;
-
       if (cache) {
-        const cached = cache.get(fullText);
+        const cached = cache.get(messages);
         if (cached) return cached;
       }
 
       const result = classifyPreRoute(messages, options);
 
       if (cache) {
-        cache.set(fullText, result);
+        cache.set(messages, result);
       }
 
-      return result;
+      return { ...result };
     },
     clearCache(): void {
       cache?.clear();

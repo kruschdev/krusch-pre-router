@@ -3,30 +3,30 @@
 </p>
 
 <p align="center">
-  <strong>The L1 Cache & Fast-Path Pre-Router for LLM Architectures.</strong><br>
-  <span>Zero dependencies. &lt;20KB bundle size. Microsecond CPU classification & LRU caching. $0.00 routing tax.</span>
+  <strong>Deterministic Regex Pre-Router & In-Memory Memoization Table for LLM Swarms.</strong><br>
+  <span>Zero dependencies. &lt;20KB bundle size. Microsecond CPU classification & LRU memoization. $0.00 routing tax.</span>
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/krusch-pre-router"><img src="https://img.shields.io/npm/v/krusch-pre-router.svg?style=flat-square" alt="NPM Version"></a>
   <a href="https://github.com/kruschdev/krusch-pre-router/blob/main/LICENSE"><img src="https://img.shields.io/github/license/kruschdev/krusch-pre-router.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/dependencies-0-brightgreen.svg?style=flat-square" alt="Zero Dependencies">
-  <img src="https://img.shields.io/badge/latency-%3C10%C2%B5s-blue.svg?style=flat-square" alt="Sub-10us Latency">
-  <img src="https://img.shields.io/badge/cache-LRU%20%3C2%C2%B5s-brightgreen.svg?style=flat-square" alt="LRU Cache <2us">
+  <img src="https://img.shields.io/badge/classification%20p50-6.5%C2%B5s-blue.svg?style=flat-square" alt="Classification p50 6.5us">
+  <img src="https://img.shields.io/badge/memo%20hit%20p50-1.5%C2%B5s-brightgreen.svg?style=flat-square" alt="LRU Memo Hit p50 1.5us">
   <img src="https://img.shields.io/badge/cost-%240.00-purple.svg?style=flat-square" alt="Zero Routing Cost">
 </p>
 
 ---
 
-## ⚡ Why Krusch Pre-Router?
+## ⚡ Architecture: Stage-0 Pre-Router Gate
 
-### **"Don't spend a model call just to pick a model. Check L1 first."**
+### **"Don't spend a model call just to pick a model. Check Stage 0 first."**
 
-In modern computer architecture, the CPU does not query main RAM or NVMe storage for every instruction—it queries the **L1 cache** first. If there is a cache hit, execution completes in nanoseconds with zero memory bus overhead.
-
-In multi-model AI architectures, using an LLM or embedding model to decide where to route an obvious Python function, SQL query, LaTeX math expression, or JSON transform is wasteful:
-* **The Routing Tax**: Neural routers introduce **30ms–500ms of Time-To-First-Token (TTFT)** and auxiliary token billing.
-* **The L1 Solution**: `krusch-pre-router` acts as an in-memory **L1 Pre-Filter & Cache Gate**. It pairs an in-memory LRU cache (<2µs hits) with deterministic CPU heuristic classification (<10µs cold) for **$0.00**. High-confidence structured traffic is fast-pathed immediately to cheap domain specialists (`Qwen3-Coder-Next`, `deepseek-v4-flash`, `gemini-3.1-flash-lite`), while unstructured conversational chat passes cleanly through (`isFastPath: false`, `role: undefined`) to your secondary **L2 Neural Router** (e.g. RouteLLM, NotDiamond) or frontier model.
+In multi-model AI swarms, querying an embedding model or LLM just to decide whether an obvious Python function, SQL query, LaTeX equation, or JSON transform belongs to a code or math specialist introduces unnecessary latency and cost:
+* **The Neural Routing Tax**: Neural routers (e.g. RouteLLM, NotDiamond) typically introduce **15ms–50ms of vectorization and MLP overhead**, while LLM-as-a-router introduces **300ms–1,200ms TTFT** plus prompt token billing.
+* **The Stage-0 Architecture**: `krusch-pre-router` provides a zero-dependency **deterministic regex classifier + optional in-memory LRU memo table**:
+  1. **LRU Memo Table**: O(1) in-memory lookup (~1.5µs p50) with defensive cloning for repeated prompts, evaluation templates, and agent retry loops.
+  2. **Deterministic Regex Stack**: Cold CPU keyword and syntax analysis (~6.5µs p50) for unseen prompts.
+  3. **Explicit Miss Delegation**: Unstructured conversational chat cleanly passes through (`isFastPath: false`, `role: undefined`) to your Stage-1 neural router or frontier model.
 
 ```
                   ┌───────────────────────────────┐
@@ -35,13 +35,13 @@ In multi-model AI architectures, using an LLM or embedding model to decide where
                                   │
                                   ▼
       ┌────────────────────────────────────────────────────────┐
-      │  Stage 0: L1 Pre-Router (krusch-pre-router)            │
-      │  LRU Cache Hit:   < 2 microseconds (O(1))              │
-      │  Cold Heuristic:  < 10 microseconds (CPU)              │
-      │  Cost:            $0.00 (0 tokens, 0 network hops)     │
+      │  Stage 0: Pre-Router Gate (krusch-pre-router)          │
+      │  LRU Memo Table Hit:  ~ 1.5 µs (Map get + clone)       │
+      │  Cold Regex Stack:    ~ 6.5 µs (CPU string analysis)   │
+      │  Cost:                $0.00 (0 tokens, 0 network hops) │
       └───────┬────────────────────────────────────────┬───────┘
               │                                        │
-    High Confidence Fast-Path                L1 Miss / Ambiguous
+    High-Confidence Fast-Path                Gate Miss / Unstructured
     (Code, SQL, LaTeX, Math, JSON)           (General Chat, Nuanced Semantics)
     isFastPath: true                         isFastPath: false (role: undefined)
               │                                        │
@@ -62,40 +62,47 @@ In multi-model AI architectures, using an LLM or embedding model to decide where
 
 ## 📦 Installation
 
+Install directly from GitHub:
+
 ```bash
-npm install krusch-pre-router
+npm install github:kruschdev/krusch-pre-router
 ```
 
-> **Requirement**: Zero runtime dependencies. ESM and CommonJS exports with full TypeScript definitions (`.d.ts`). Compatible with Node 18+, Bun, Deno, Cloudflare Workers, Vercel Edge, and modern browsers.
+Or from local checkout:
+```bash
+npm install ../path/to/krusch-pre-router
+```
+
+> **Requirements**: Zero runtime dependencies. ESM and CommonJS exports with full TypeScript definitions (`.d.ts`). Compatible with Node 18+, Bun, Deno, Cloudflare Workers, Vercel Edge, and modern browsers.
 
 ---
 
 ## 🚀 Usage
 
-### 1. Stateful Pre-Router with In-Memory LRU Cache (Recommended)
+### 1. Stateful Pre-Router with In-Memory LRU Memo Table (Recommended)
 
-`createPreRouter()` wraps heuristic evaluation with a built-in, zero-dependency LRU cache with whitespace normalization:
+`createPreRouter()` wraps heuristic evaluation with an optional in-memory LRU memoization table (useful for agent retry loops and repeated templates):
 
 ```javascript
 import { createPreRouter } from 'krusch-pre-router';
 
-// Create pre-router instance (LRU cache size defaults to 1,000 prompts)
+// Create pre-router instance (LRU memo table size defaults to 1,000 entries)
 const router = createPreRouter({
   cache: { maxSize: 2000 }
 });
 
 async function handlePrompt(prompt) {
-  // Checks LRU cache first (<2µs), evaluates heuristics on miss (<10µs)
+  // Checks LRU memo table (~1.5µs), evaluates cold heuristics on miss (~6.5µs)
   const route = router.classify(prompt);
 
   if (route.isFastPath) {
     // ⚡ Direct specialist dispatch
-    console.log(`L1 Hit! Role: ${route.role} (confidence: ${route.confidence})`);
+    console.log(`Fast-Path Hit! Role: ${route.role} (confidence: ${route.confidence})`);
     return callSpecialist(route.role, prompt);
   }
 
   // 🔍 Pass through to L2 / Frontier
-  console.log('L1 Miss -> Passing to L2 Neural Router or Frontier Model');
+  console.log('Stage-0 Miss -> Passing to L2 Neural Router or Frontier Model');
   return callFrontier(prompt);
 }
 ```
@@ -148,25 +155,44 @@ Reproduce anytime locally with:
 npm run bench
 ```
 
-Benchmarked on Node.js v20 (10,000 iterations across code, STEM, closed-world, and unstructured chat prompts):
+Benchmarked on **Intel Core i7-5820K (12 cores @ 3.30GHz), 32GB RAM, Linux x86_64, Node.js v22.23.2** (10,000 iterations):
 
-| Stage | Average | Min | p50 | p90 | p99 | Throughput |
-|---|---|---|---|---|---|---|
-| **Warm LRU Cache Hit** (`router.classify`) | **1.75 µs** | 0.74 µs | **1.50 µs** | 2.15 µs | 4.15 µs | **~534,000 ops/sec** |
-| **Cold Regex Heuristic** (`classifyPreRoute`) | **6.99 µs** | 1.08 µs | **5.69 µs** | 11.68 µs | 24.68 µs | **~139,000 ops/sec** |
+| Stage | Scope | Average | Min | p50 | p90 | p99 | Throughput |
+|---|---|---|---|---|---|---|---|
+| **Warm LRU Memo Hit** (`router.classify`) | In-memory Map lookup + defensive copy for repeated templates | **1.60 µs** | 0.75 µs | **1.46 µs** | 1.92 µs | 3.78 µs | **~583,000 ops/sec** |
+| **Cold Regex Heuristic** (`classifyPreRoute`) | Full CPU regex stack evaluation on unseen prompts | **8.38 µs** | 1.30 µs | **6.55 µs** | 14.56 µs | 23.81 µs | **~116,000 ops/sec** |
+
+> **Note**: Latencies measure **local CPU classification and lookup overhead**. They do not represent end-to-end model dispatch latency, which is dominated by downstream inference (100ms–2,000ms).
 
 ---
 
-## ⚖️ Pipeline Comparison: L1 vs L2 Routers
+## 🧪 Evaluation & Accuracy Testing
 
-| Dimension | Krusch Pre-Router (L1 Gate) | Embedding Routers (RouteLLM, NotDiamond) | LLM-as-a-Router (e.g. Orca) |
+The test suite validates performance across both in-domain specialist traffic and out-of-distribution conversational traffic:
+
+```bash
+npm test
+```
+
+* **Holdout Specialist Dataset (100 prompts)**: Evaluates template-free prompts across all 6 target domains (Code, STEM, Deep Reasoning, Reading Comprehension, Chess/Spatial, General Fast). Target domain accuracy: **100% (100/100)**.
+* **Out-of-Distribution (OOD) Dataset (100 prompts)**: Evaluates open-world conversational chat, subjective advice, creative writing, and adversarial traps (e.g. colloquial "force", "mass", "pipeline", "function of sleep").
+  * **Clean L2 Delegation**: **100.0% (100/100)**
+  * **Wrong-Specialist Rate (False-Positive Rate)**: **0.0% (0/100)**
+
+---
+
+## ⚖️ Pipeline Comparison: Stage 0 vs Stage 1 Routers
+
+| Dimension | Stage-0 Pre-Router (`krusch-pre-router`) | Stage-1 Embedding Routers (RouteLLM, NotDiamond) | LLM-as-a-Router (e.g. Orca) |
 |---|---|---|---|
-| **Dispatch Latency** | **1.5 µs – 7 µs (CPU)** | 15 ms – 50 ms (Vectorization + MLP) | 300 ms – 1,200 ms (API pre-flight) |
+| **Gate / Classification Latency (CPU)** | **1.5 µs – 7 µs (Local CPU)** | 15 ms – 50 ms (Vectorization + MLP) | 300 ms – 1,200 ms (API pre-flight) |
 | **Routing Cost** | **$0.00 (0 tokens)** | ~$0.0001 (Embedding tokens) | ~$0.002 (Prompt tokens) |
 | **Runtime Dependencies** | **0 dependencies (<20KB)** | Vector DB / ONNX runtime | Full LLM API client |
 | **Deterministic Syntax (Code, Math, SQL)** | **Instant Fast-Path** | Evaluates embedding distance | Prompt-based classification |
 | **Ambiguous Conversational Chat** | **Delegates to L2 (`isFastPath: false`)** | High (Learns nuanced semantics) | Very High |
 | **Execution Environment** | **Anywhere (Edge, Workers, Browser)** | Server / Python container | Server / Cloud API |
+
+*\* Note: Classification latency measures the time required to choose a route. End-to-end response latency includes downstream model inference.*
 
 ---
 
