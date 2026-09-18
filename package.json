@@ -26,6 +26,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "test": "node --test",
+    "bench": "node benchmark/latency.bench.js",
     "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [

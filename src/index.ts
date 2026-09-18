@@ -11,3 +11,11 @@ export {
   ClassifierOptions,
   CustomSpecialistRule
 } from './classifier.js';
+
+export {
+  PreRouteCache,
+  CacheOptions,
+  createPreRouter,
+  PreRouter,
+  PreRouterOptions
+} from './cache.js';

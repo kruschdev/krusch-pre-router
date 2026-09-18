@@ -4,14 +4,15 @@
 
 <p align="center">
   <strong>The L1 Cache & Fast-Path Pre-Router for LLM Architectures.</strong><br>
-  <span>Zero dependencies. &lt;20KB bundle size. Sub-15 microsecond CPU classification. $0.00 routing tax.</span>
+  <span>Zero dependencies. &lt;20KB bundle size. Microsecond CPU classification & LRU caching. $0.00 routing tax.</span>
 </p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/krusch-pre-router"><img src="https://img.shields.io/npm/v/krusch-pre-router.svg?style=flat-square" alt="NPM Version"></a>
   <a href="https://github.com/kruschdev/krusch-pre-router/blob/main/LICENSE"><img src="https://img.shields.io/github/license/kruschdev/krusch-pre-router.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/dependencies-0-brightgreen.svg?style=flat-square" alt="Zero Dependencies">
-  <img src="https://img.shields.io/badge/latency-%3C15%C2%B5s-blue.svg?style=flat-square" alt="Sub-15us Latency">
+  <img src="https://img.shields.io/badge/latency-%3C10%C2%B5s-blue.svg?style=flat-square" alt="Sub-10us Latency">
+  <img src="https://img.shields.io/badge/cache-LRU%20%3C2%C2%B5s-brightgreen.svg?style=flat-square" alt="LRU Cache <2us">
   <img src="https://img.shields.io/badge/cost-%240.00-purple.svg?style=flat-square" alt="Zero Routing Cost">
 </p>
 
@@ -21,11 +22,11 @@
 
 ### **"Don't spend a model call just to pick a model. Check L1 first."**
 
-In modern computer architecture, the CPU does not query main RAM or NVMe storage for every instruction—it queries the **L1 cache** in 1 clock cycle. If there is a cache hit, execution completes instantly with zero memory bus overhead.
+In modern computer architecture, the CPU does not query main RAM or NVMe storage for every instruction—it queries the **L1 cache** first. If there is a cache hit, execution completes in nanoseconds with zero memory bus overhead.
 
-In multi-model AI architectures, using an LLM or neural embedding model to decide where to route an obvious Python function, SQL query, LaTeX math expression, or JSON transform is an expensive anti-pattern:
-* **The Routing Tax**: Heavy routers introduce **300ms–800ms of Time-To-First-Token (TTFT)** and auxiliary billing per step.
-* **The L1 Solution**: `krusch-pre-router` acts as an in-memory **L1 Pre-Filter Gate**. It evaluates deterministic syntax and closed-world boundaries in **<15 microseconds** on CPU for **$0.00**, immediately dispatching high-confidence structured traffic to cheap domain specialists (`Qwen3-Coder-Next`, `deepseek-v4-flash`, `gemini-3.1-flash-lite`), while cleanly delegating ambiguous natural language to secondary **L2 Neural Routers** (e.g. RouteLLM, NotDiamond) or frontier models.
+In multi-model AI architectures, using an LLM or embedding model to decide where to route an obvious Python function, SQL query, LaTeX math expression, or JSON transform is wasteful:
+* **The Routing Tax**: Neural routers introduce **30ms–500ms of Time-To-First-Token (TTFT)** and auxiliary token billing.
+* **The L1 Solution**: `krusch-pre-router` acts as an in-memory **L1 Pre-Filter & Cache Gate**. It pairs an in-memory LRU cache (<2µs hits) with deterministic CPU heuristic classification (<10µs cold) for **$0.00**. High-confidence structured traffic is fast-pathed immediately to cheap domain specialists (`Qwen3-Coder-Next`, `deepseek-v4-flash`, `gemini-3.1-flash-lite`), while unstructured conversational chat passes cleanly through (`isFastPath: false`, `role: undefined`) to your secondary **L2 Neural Router** (e.g. RouteLLM, NotDiamond) or frontier model.
 
 ```
                   ┌───────────────────────────────┐
@@ -34,17 +35,19 @@ In multi-model AI architectures, using an LLM or neural embedding model to decid
                                   │
                                   ▼
       ┌────────────────────────────────────────────────────────┐
-      │  Stage 1: L1 Pre-Router (krusch-pre-router)           │
-      │  Latency: < 15 microseconds (CPU)                      │
-      │  Cost:    $0.00 (0 tokens, 0 network hops)             │
+      │  Stage 0: L1 Pre-Router (krusch-pre-router)            │
+      │  LRU Cache Hit:   < 2 microseconds (O(1))              │
+      │  Cold Heuristic:  < 10 microseconds (CPU)              │
+      │  Cost:            $0.00 (0 tokens, 0 network hops)     │
       └───────┬────────────────────────────────────────┬───────┘
               │                                        │
-    High Confidence Syntax                   Low Confidence / Ambiguous
-    (Code, SQL, LaTeX, Math, JSON)           (Chat, Nuanced Semantics)
+    High Confidence Fast-Path                L1 Miss / Ambiguous
+    (Code, SQL, LaTeX, Math, JSON)           (General Chat, Nuanced Semantics)
+    isFastPath: true                         isFastPath: false (role: undefined)
               │                                        │
               ▼                                        ▼
     ┌───────────────────┐                 ┌─────────────────────────┐
-    │ Direct Specialist │                 │  Stage 2: L2 Classifier │
+    │ Direct Specialist │                 │  Stage 1: L2 Classifier │
     │ (e.g. Qwen-Coder, │                 │  (RouteLLM, NotDiamond, │
     │  DeepSeek-Flash)  │                 │   Vector Embedding MLP) │
     └───────────────────┘                 └────────────┬────────────┘
@@ -63,43 +66,105 @@ In multi-model AI architectures, using an LLM or neural embedding model to decid
 npm install krusch-pre-router
 ```
 
-> **Requirement**: Zero runtime dependencies. Compatible with Node 18+, Bun, Deno, Cloudflare Workers, Vercel Edge, and modern browsers.
+> **Requirement**: Zero runtime dependencies. ESM and CommonJS exports with full TypeScript definitions (`.d.ts`). Compatible with Node 18+, Bun, Deno, Cloudflare Workers, Vercel Edge, and modern browsers.
 
 ---
 
-## 🚀 3-Line Drop-In Quick Start
+## 🚀 Usage
 
-Add an L1 fast-path gate in front of your existing OpenAI, Anthropic, or Vercel AI SDK pipeline:
+### 1. Stateful Pre-Router with In-Memory LRU Cache (Recommended)
+
+`createPreRouter()` wraps heuristic evaluation with a built-in, zero-dependency LRU cache with whitespace normalization:
+
+```javascript
+import { createPreRouter } from 'krusch-pre-router';
+
+// Create pre-router instance (LRU cache size defaults to 1,000 prompts)
+const router = createPreRouter({
+  cache: { maxSize: 2000 }
+});
+
+async function handlePrompt(prompt) {
+  // Checks LRU cache first (<2µs), evaluates heuristics on miss (<10µs)
+  const route = router.classify(prompt);
+
+  if (route.isFastPath) {
+    // ⚡ Direct specialist dispatch
+    console.log(`L1 Hit! Role: ${route.role} (confidence: ${route.confidence})`);
+    return callSpecialist(route.role, prompt);
+  }
+
+  // 🔍 Pass through to L2 / Frontier
+  console.log('L1 Miss -> Passing to L2 Neural Router or Frontier Model');
+  return callFrontier(prompt);
+}
+```
+
+### 2. Stateless Heuristic Evaluation
 
 ```javascript
 import { classifyPreRoute } from 'krusch-pre-router';
 
-async function handlePrompt(prompt) {
-  // 1. Check L1 in <15 microseconds ($0.00, 0 tokens)
-  const preRoute = classifyPreRoute(prompt);
+const route = classifyPreRoute('Write a Python function to compute Fibonacci numbers.');
+// {
+//   isFastPath: true,
+//   role: 'code',
+//   confidence: 'high',
+//   complexityScore: 0.15,
+//   suggestedAction: 'dispatch_specialist'
+// }
 
-  if (preRoute.isFastPath) {
-    // ⚡ L1 Fast-Path Hit: Direct dispatch to domain specialist
-    console.log(`L1 Hit! Routing directly to specialist: ${preRoute.role}`);
-    return callSpecialist(preRoute.role, prompt);
-  }
+const chat = classifyPreRoute('How are you feeling today?');
+// {
+//   isFastPath: false,
+//   role: undefined,
+//   confidence: 'unstructured',
+//   complexityScore: 0.0,
+//   suggestedAction: 'delegate_to_l2'
+// }
+```
 
-  // 🔍 L1 Miss: Ambient / ambiguous natural language
-  console.log('L1 Miss -> Passing through to L2 Neural Router / Frontier LLM');
-  return callFrontierModel(prompt);
-}
+### 3. Custom Domain Rules
+
+Adapt the pre-router to your application's domain with custom regex overrides:
+
+```javascript
+const router = createPreRouter({
+  customSpecialistRules: [
+    // Fast-path internal billing/finance queries
+    { role: 'reasoning_deep', pattern: /\b(?:stripe invoice|chargeback|mrr|arr)\b/i },
+    // Route customer support ticket tags
+    { role: 'general_fast', pattern: /\b(?:ticket #\d+|support refund|account password)\b/i }
+  ]
+});
 ```
 
 ---
 
-## ⚖️ Architectural Trade-offs: L1 vs L2 Routers
+## 📊 Benchmark Results
 
-| Dimension | Krusch Pre-Router (L1 Gate) | Embedding Routers (RouteLLM, NotDiamond) | LLM-as-a-Router (Orca) |
+Reproduce anytime locally with:
+```bash
+npm run bench
+```
+
+Benchmarked on Node.js v20 (10,000 iterations across code, STEM, closed-world, and unstructured chat prompts):
+
+| Stage | Average | Min | p50 | p90 | p99 | Throughput |
+|---|---|---|---|---|---|---|
+| **Warm LRU Cache Hit** (`router.classify`) | **1.75 µs** | 0.74 µs | **1.50 µs** | 2.15 µs | 4.15 µs | **~534,000 ops/sec** |
+| **Cold Regex Heuristic** (`classifyPreRoute`) | **6.99 µs** | 1.08 µs | **5.69 µs** | 11.68 µs | 24.68 µs | **~139,000 ops/sec** |
+
+---
+
+## ⚖️ Pipeline Comparison: L1 vs L2 Routers
+
+| Dimension | Krusch Pre-Router (L1 Gate) | Embedding Routers (RouteLLM, NotDiamond) | LLM-as-a-Router (e.g. Orca) |
 |---|---|---|---|
-| **Dispatch Latency** | **< 15 microseconds (CPU)** | 15 – 50 ms (Vectorization + MLP) | 400 – 1,200 ms (LLM pre-flight) |
+| **Dispatch Latency** | **1.5 µs – 7 µs (CPU)** | 15 ms – 50 ms (Vectorization + MLP) | 300 ms – 1,200 ms (API pre-flight) |
 | **Routing Cost** | **$0.00 (0 tokens)** | ~$0.0001 (Embedding tokens) | ~$0.002 (Prompt tokens) |
 | **Runtime Dependencies** | **0 dependencies (<20KB)** | Vector DB / ONNX runtime | Full LLM API client |
-| **Structured Prompts (Code, Math, SQL)** | **High Precision (>95%)** | High (>90%) | High (>95%) |
+| **Deterministic Syntax (Code, Math, SQL)** | **Instant Fast-Path** | Evaluates embedding distance | Prompt-based classification |
 | **Ambiguous Conversational Chat** | **Delegates to L2 (`isFastPath: false`)** | High (Learns nuanced semantics) | Very High |
 | **Execution Environment** | **Anywhere (Edge, Workers, Browser)** | Server / Python container | Server / Cloud API |
 
@@ -107,16 +172,32 @@ async function handlePrompt(prompt) {
 
 ## 🛠️ API Reference
 
+### `createPreRouter(options?: PreRouterOptions): PreRouter`
+
+Factory creating a stateful pre-router instance with an integrated LRU cache.
+
+```typescript
+interface PreRouterOptions extends ClassifierOptions {
+  cache?: boolean | CacheOptions; // Cache enabled by default (maxSize: 1000)
+}
+
+interface PreRouter {
+  classify(messages: Message[] | string): PreRouteResult;
+  cache: PreRouteCache | null;
+  clearCache(): void;
+}
+```
+
 ### `classifyPreRoute(prompt, options?): PreRouteResult`
 
-Evaluates prompt structure and returns a classification result:
+Evaluates prompt structure and returns classification metadata:
 
 ```typescript
 interface PreRouteResult {
-  isFastPath: boolean;             // True if matched a high-confidence deterministic specialist domain
-  role: SpecialistRole;            // 'code' | 'factual_stem' | 'general_fast' | 'reasoning_deep' | 'games_spatial' | 'comprehension_rc'
+  isFastPath: boolean;             // True if matched a deterministic specialist domain
+  role?: SpecialistRole;           // Defined on fast-path ('code' | 'factual_stem' | 'general_fast' | 'reasoning_deep' | 'games_spatial' | 'comprehension_rc'); undefined on miss
   confidence: 'high' | 'borderline' | 'unstructured';
-  complexityScore: number;         // [0.0, 1.0] continuous complexity
+  complexityScore: number;         // [0.0, 1.0] continuous complexity indicator
   suggestedAction: 'dispatch_specialist' | 'delegate_to_l2';
 }
 ```
@@ -132,21 +213,9 @@ detectKnowledgeBoundary("Convert 75 F to C"); // 'closed'
 detectKnowledgeBoundary("What are the ethical dilemmas of AI?"); // 'open'
 ```
 
-### `classifySpecialistRole(prompt, options?): SpecialistRole`
-
-Direct deterministic role classifier:
-
-```javascript
-import { classifySpecialistRole } from 'krusch-pre-router';
-
-classifySpecialistRole("def quicksort(arr): ..."); // 'code'
-classifySpecialistRole("Calculate \\frac{3}{4} + \\sqrt{16}"); // 'factual_stem'
-classifySpecialistRole("Translate this sentence to French"); // 'general_fast'
-```
-
 ---
 
-## 🌐 Looking for a Turnkey Swarm Runtime?
+## 🌐 Looking for an End-to-End Cascade Swarm?
 
 If you want an end-to-end multi-model execution layer powered by `krusch-pre-router` with:
 * 5 specialized domain models routed via OpenRouter

@@ -9,7 +9,9 @@ import {
   detectKnowledgeBoundary, 
   isComplexPrompt, 
   evaluateComplexityScore, 
-  pruneText 
+  pruneText,
+  PreRouteCache,
+  createPreRouter
 } from '../dist/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -47,6 +49,7 @@ test('classifyPreRoute - Fast-Path Identification vs L2 Delegation', () => {
   for (const query of unstructuredSamples) {
     const res = classifyPreRoute(query);
     assert.equal(res.isFastPath, false, `Expected query "${query}" to NOT be Fast-Path`);
+    assert.equal(res.role, undefined, `Expected role to be undefined on miss for query "${query}"`);
     assert.equal(res.suggestedAction, 'delegate_to_l2', `Expected delegate_to_l2 for query "${query}"`);
   }
 });
@@ -78,6 +81,9 @@ test('detectKnowledgeBoundary - Closed-World vs Open-World', () => {
   assert.equal(detectKnowledgeBoundary('What is the regular expression for email validation?'), 'closed');
   assert.equal(detectKnowledgeBoundary('What are the ethical dilemmas in autonomous vehicles?'), 'open');
   assert.equal(detectKnowledgeBoundary('Explain the history of the Silk Road'), 'open');
+  // Empty and whitespace queries default to 'open'
+  assert.equal(detectKnowledgeBoundary(''), 'open');
+  assert.equal(detectKnowledgeBoundary('   '), 'open');
 });
 
 // 4. Complexity Scoring & Pruning
@@ -92,4 +98,46 @@ test('evaluateComplexityScore and pruneText', () => {
 
   const complexScore = evaluateComplexityScore('Analyze and architect a fault-tolerant distributed raft consensus algorithm with formal proofs.');
   assert.ok(complexScore > 0.35, `Complex prompt should have higher complexity, got ${complexScore}`);
+});
+
+// 5. In-Memory LRU Cache & createPreRouter
+test('PreRouteCache - LRU storage, whitespace normalization, and eviction', () => {
+  const cache = new PreRouteCache({ maxSize: 2 });
+
+  const res1 = classifyPreRoute('Write a Python function');
+  const res2 = classifyPreRoute('Calculate 2 + 2');
+  const res3 = classifyPreRoute('Translate hello to Spanish');
+
+  cache.set('Write a Python function', res1);
+  cache.set('Calculate 2 + 2', res2);
+
+  assert.equal(cache.size, 2);
+  assert.ok(cache.has('Write  a   Python   function')); // normalized whitespace matches
+  assert.equal(cache.get('Write a Python function')?.role, 'code');
+
+  // Adding 3rd item should evict 'Calculate 2 + 2' because 'Write a Python function' was refreshed by get()
+  cache.set('Translate hello to Spanish', res3);
+  assert.equal(cache.size, 2);
+  assert.ok(cache.has('Write a Python function'));
+  assert.ok(cache.has('Translate hello to Spanish'));
+  assert.equal(cache.has('Calculate 2 + 2'), false);
+});
+
+test('createPreRouter - Stateful cached routing wrapper', () => {
+  const router = createPreRouter({ cache: { maxSize: 10 } });
+  assert.ok(router.cache);
+
+  const q = 'Write a fast binary search in C++';
+  const res1 = router.classify(q);
+  assert.equal(res1.isFastPath, true);
+  assert.equal(res1.role, 'code');
+
+  // Verify result is cached
+  assert.ok(router.cache.has(q));
+  const res2 = router.classify(q);
+  assert.deepEqual(res1, res2);
+
+  // Clear cache
+  router.clearCache();
+  assert.equal(router.cache.size, 0);
 });
