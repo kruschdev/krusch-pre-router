@@ -352,15 +352,15 @@ detectKnowledgeBoundary("What are the ethical dilemmas of AI?"); // 'open'
 Evaluation follows a deterministic, priority-ordered chain:
 1. **Custom Specialist Rules** (`options.customSpecialistRules`) — *Always evaluate first*
 2. **Grounded Reading Comprehension** (`role: 'comprehension_rc'`)
-3. **Chess & Spatial Games** (`role: 'games_spatial'`)
-4. **Code Generation & SQL** (`role: 'code'`)
+3. **Code Generation & SQL** (`role: 'code'`)
+4. **Chess & Spatial Games** (`role: 'games_spatial'`)
 5. **Deep Financial Reasoning & Proofs** (`role: 'reasoning_deep'`)
 6. **General Fast** (`role: 'general_fast'`)
 7. **Explicit STEM & Math** (`role: 'factual_stem'`)
 8. **Closed-World Transforms** (`role: 'general_fast'`)
 9. **Unstructured Miss** (`isFastPath: false`, `role: undefined`)
 
-> **Multi-Domain Precedence**: If a prompt spans multiple domains (e.g. *"Based on the provided passage, write a SQL query to extract users"*), earlier rules take precedence (`comprehension_rc` precedes `code`). To enforce custom domain priority, define rules in `customSpecialistRules`.
+> **Multi-Domain Precedence**: If a prompt spans multiple domains (e.g. *"Write a Python script to parse a chess PGN"* or *"Based on the provided passage, write a SQL query"*), earlier rules take precedence (`code` precedes `games_spatial`; `comprehension_rc` precedes `code`). To enforce custom domain priority, define rules in `customSpecialistRules`.
 
 ---
 

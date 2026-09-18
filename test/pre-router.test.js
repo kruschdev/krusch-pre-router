@@ -370,4 +370,47 @@ test('createPreRouter - supports custom domain role taxonomies and overrides', (
   assert.equal(missRes.suggestedAction, 'delegate_to_l2');
 });
 
+// 17. Code-over-Games Precedence, Tightened Chess/JSON/Fences, and Unified Complexity
+test('classifyPreRoute - code-over-games precedence, tightened chess/JSON/fences, and unified complexity', () => {
+  // 1. Code intent involving chess/PGN must route to code, not games_spatial
+  const pythonPgn = classifyPreRoute('Write a Python script to parse a chess PGN and validate legal moves.');
+  assert.equal(pythonPgn.isFastPath, true);
+  assert.equal(pythonPgn.role, 'code');
+
+  const cppEngine = classifyPreRoute('Implement a chess minimax engine in C++ with alpha-beta pruning.');
+  assert.equal(cppEngine.isFastPath, true);
+  assert.equal(cppEngine.role, 'code');
+
+  // 2. Bare chess historical trivia must cleanly miss to L2
+  const chessHistory = classifyPreRoute('Who was the world chess champion in 1972?');
+  assert.equal(chessHistory.isFastPath, false);
+  assert.equal(chessHistory.role, undefined);
+  assert.equal(chessHistory.suggestedAction, 'delegate_to_l2');
+
+  // 3. Discrete chess move notation routes to games_spatial
+  const chessMoves = classifyPreRoute('1. e4 e5 2. Nf3 Nc6');
+  assert.equal(chessMoves.isFastPath, true);
+  assert.equal(chessMoves.role, 'games_spatial');
+
+  // 4. Loose braces/quotes must not trigger JSON complexity inflation
+  const notesText = 'In my notes {I wrote "todo"}';
+  const notesScore = evaluateComplexityScore(notesText);
+  assert.ok(notesScore < 0.15, `Casual braces should have near-zero complexity, got ${notesScore}`);
+  assert.equal(isComplexPrompt(notesText), false);
+
+  // Short markup alone must not trigger boolean complexity
+  assert.equal(isComplexPrompt('<div>hello</div>'), false);
+
+  // 5. Prose in markdown code fences must NOT route to code
+  const markdownProse = classifyPreRoute('```markdown\n# Hello\nThis is pure prose documentation.\n```');
+  assert.equal(markdownProse.role, undefined);
+  assert.equal(markdownProse.isFastPath, false);
+
+  // 6. Legitimate code fence routes to code
+  const pythonFence = classifyPreRoute('```python\ndef foo():\n  pass\n```');
+  assert.equal(pythonFence.isFastPath, true);
+  assert.equal(pythonFence.role, 'code');
+});
+
+
 

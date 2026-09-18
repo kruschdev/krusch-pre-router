@@ -93,6 +93,7 @@ export function pruneText(text: string): string {
 }
 
 const MAX_PRE_ROUTE_SCAN_CHARS = 8000;
+const JSON_OBJECT = /\{[\s\S]*?"[^"\n]+"\s*:\s*[\s\S]*?\}/;
 
 /**
  * Continuous complexity scorer [0.0, 1.0].
@@ -127,7 +128,7 @@ export function evaluateComplexityScore(messages: Message[] | string, options?: 
 
   // Structural markers (formatted payloads like HTML/XML or nested JSON data)
   if (/<\/?([a-z][a-z0-9]*)\b[^>]*>/i.test(scanText)) score += 0.20;
-  if (/\{[\s\S]*"[\s\S]*\}/.test(scanText)) score += 0.20;
+  if (JSON_OBJECT.test(scanText)) score += 0.20;
 
   // Moderate cognitive / comparative inquiry (borderline indicators)
   if (/\b(compare|contrast|explain why|how does|tradeoffs|pros and cons|difference between)\b/i.test(scanText)) {
@@ -154,41 +155,15 @@ export function evaluateComplexityScore(messages: Message[] | string, options?: 
 
 /**
  * A fast heuristic classifier to predict if a prompt is "simple" or "complex".
- * Evaluates message length, complex cognitive verbs, and structural payload markers.
+ * Evaluates message length, complex cognitive verbs, and structural payload markers
+ * by testing whether evaluateComplexityScore meets or exceeds the complexity threshold (default: 0.5).
  */
-export function isComplexPrompt(messages: Message[] | string, options?: ClassifierOptions): boolean {
-  const lengthThreshold = options?.lengthThreshold || 2000;
-  
-  let fullText = Array.isArray(messages) 
-    ? messages.map(m => m.content).join('\n') 
-    : messages;
-
-  if (options?.prunePreRouting) {
-    fullText = pruneText(fullText);
-  }
-
-  if (fullText.length > lengthThreshold) {
-    return true;
-  }
-
-  // Fast regex markers for complexity
-  const complexMarkers = [
-    /<\/?([a-z][a-z0-9]*)\b[^>]*>/i, // Contains XML/HTML tags
-    /\{[\s\S]*"[\s\S]*\}/,    // Contains JSON-like structures
-    /\b(analyze|evaluate|architect|synthesize|speculate|refactor|debug|benchmark)\b/i // Complex cognitive verbs
-  ];
-
-  if (options?.customRules) {
-    complexMarkers.push(...options.customRules);
-  }
-
-  for (const marker of complexMarkers) {
-    if (marker.test(fullText)) {
-      return true;
-    }
-  }
-
-  return false;
+export function isComplexPrompt(
+  messages: Message[] | string,
+  options?: ClassifierOptions,
+  threshold = 0.5
+): boolean {
+  return evaluateComplexityScore(messages, options) >= threshold;
 }
 
 /**
@@ -255,32 +230,13 @@ export function classifyPreRoute<TRole extends string = string>(messages: Messag
     };
   }
 
-  // 2. Chess & Spatial Board Games (State engines & discrete coordinates)
-  const isChess = 
-    /\b(?:chess|checkmate|stalemate|castling|fen|pgn|en passant|zugzwang)\b/i.test(scanText) ||
-    /\b(?:board position|legal moves|pawn move|knight move|bishop move|rook move|queen move|king move)\b/i.test(scanText) ||
-    /\b(?:sudoku grid|tic-tac-toe|connect four|gomoku)\b/i.test(scanText) ||
-    /\b[a-h][1-8]-[a-h][1-8]\b/.test(scanText) ||
-    /(?:^|\s)1\.\s*(?:e4|d4|c4|Nf3|g3|f4|Nc3|b3|[a-h][34])\b/i.test(scanText) ||
-    /\b(?:e4\s+(?:e5|c5|e6|c6)|d4\s+(?:d5|Nf6|g6)|Nf3\s+(?:d5|Nf6))\b/i.test(scanText);
-
-  if (isChess) {
-    return {
-      isFastPath: true,
-      role: 'games_spatial',
-      confidence: 'high',
-      complexityScore,
-      suggestedAction: 'dispatch_specialist'
-    };
-  }
-
-  // 3. Code Generation, Refactoring & Algorithm Synthesis
+  // 2. Code Generation, Refactoring & Algorithm Synthesis
   const isCode = 
-    // Markdown code blocks with explicit language identifier or inline code constructs
-    /```(?:bash|sh|zsh|python|py|javascript|js|typescript|ts|rust|rs|go|golang|c|cpp|c\+\+|c#|cs|java|html|css|json|yaml|yml|sql|dockerfile|graphql|ruby|php|swift|kotlin|scala|r|lua|perl|markdown|md|shell|wasm|toml|ini|diff)\b/i.test(scanText) ||
-    /```[\s\S]*?\b(?:def\s+\w+|function\s+\w+|class\s+\w+|import\s+[\w{}*]+|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|return\s+|console\.log|SELECT\s+|INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM)\b[\s\S]*?```/i.test(scanText) ||
+    // Markdown code blocks with explicit language identifier (excluding plain prose formats) or inline code constructs
+    /```(?!(?:md|markdown|text|plain|txt|prose)\b)[a-zA-Z0-9_#+-]+\b[\s\S]*?```/i.test(scanText) ||
+    /```[\s\S]*?(?:\b(?:def\s+\w+|function\s+\w+|class\s+\w+|import\s+[\w{}*]+|return\b|console\.log|SELECT\s+|INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM)|\b(?:const|let|var)\s+\w+\s*=)[\s\S]*?```/i.test(scanText) ||
     // Intent to write / implement / refactor / debug / optimize code
-    /\b(?:write|create|implement|build|refactor|debug|fix|optimize|convert)\b[\s\S]{0,60}\b(?:code|script|function|class|method|algorithm|api|endpoint|sql query|component|hook|unit test|test suite|decorator|type|interface|database schema|middleware|resolver|generator|(?:ci\/cd|data|etl|build|deployment)\s+pipeline|dockerfile|regex|callback|promise|async\/await|binary search|quicksort|sorting|bfs|dfs)\b/i.test(scanText) ||
+    /\b(?:write|create|implement|build|refactor|debug|fix|optimize|convert)\b[\s\S]{0,60}\b(?:code|script|function|class|method|algorithm|api|endpoint|sql query|component|hook|unit test|test suite|decorator|type|interface|database schema|middleware|resolver|generator|(?:ci\/cd|data|etl|build|deployment)\s+pipeline|dockerfile|regex|callback|promise|async\/await|binary search|quicksort|sorting|bfs|dfs|minimax|engine)\b/i.test(scanText) ||
     /\b(?:how (?:do|can) I (?:implement|code|write|program|fix|debug|test|optimize|refactor))\b/i.test(scanText) ||
     /\b(?:fix this (?:code|bug|error|issue|exception|stack trace|syntax|crash|warning))\b/i.test(scanText) ||
     /\b(?:unit test|test suite|test case|pytest|jest|vitest|mocha|cargo test)\b/i.test(scanText) ||
@@ -288,7 +244,7 @@ export function classifyPreRoute<TRole extends string = string>(messages: Messag
     /(?:Traceback \(most recent call last\)|TypeError:|SyntaxError:|ReferenceError:|NullPointerException|IndexOutOfBoundsException|ModuleNotFoundError:|panic:|Segmentation fault|SIGSEGV|Uncaught Error:)/i.test(scanText) ||
     // Language & Framework specific terms combined with coding keywords
     (/\b(?:typescript|javascript|python|rust|golang|c\+\+|cpp|c#|java|scala|kotlin|swift|ruby|php|react|vue|angular|svelte|next\.js|node\.js|express|fastapi|django|flask|graphql|dockerfile|github actions|kubernetes|k8s|css flexbox|css grid|tailwind|sql query|postgresql|sqlite|redis|mongodb)\b/i.test(scanText) &&
-     /\b(?:error|bug|issue|exception|function|class|component|hook|query|schema|type|import|export|install|build|compile|syntax|loop|re-render|memory leak|thread|mutex|deadlock|concurrency|async|await|promise|callback|iterator|package|module|resolver|endpoint|route|layout|generic|workflow|search|sort|algorithm)\b/i.test(scanText)) ||
+     /\b(?:error|bug|issue|exception|function|class|component|hook|query|schema|type|import|export|install|build|compile|syntax|loop|re-render|memory leak|thread|mutex|deadlock|concurrency|async|await|promise|callback|iterator|package|module|resolver|endpoint|route|layout|generic|workflow|search|sort|algorithm|engine|minimax|implementation)\b/i.test(scanText)) ||
     // Programming keywords and signatures (require parameter parentheses or assignment)
     /\b(?:def\s+[a-zA-Z_]\w*\s*\(|function\s+[a-zA-Z_]\w*\s*\(|const\s+[a-zA-Z_]\w*\s*=|let\s+[a-zA-Z_]\w*\s*=|var\s+[a-zA-Z_]\w*\s*=|fn\s+[a-zA-Z_]\w*\s*\(|func\s+(?:\([a-zA-Z0-9_*\s]+\)\s*)?[a-zA-Z_]\w*\s*\(|class\s+[a-zA-Z_]\w*\s*(?:extends|implements|\{|\:)|public\s+(?:static\s+)?void|import\s+.*\s+from|from\s+.*\s+import|#include\s+<|require\(['"].*['"]\)|package\s+main|console\.log\(|println!|std::|fmt\.Println)\b/.test(scanText) ||
     // SQL DDL / DML
@@ -302,6 +258,32 @@ export function classifyPreRoute<TRole extends string = string>(messages: Messag
     return {
       isFastPath: true,
       role: 'code',
+      confidence: 'high',
+      complexityScore,
+      suggestedAction: 'dispatch_specialist'
+    };
+  }
+
+  // 3. Chess & Spatial Board Games (State engines & discrete coordinates)
+  const BARE_CHESS_WORD = /\b(?:chess|checkmate|stalemate|castling|zugzwang)\b/i;
+  const CHESS_STRUCTURE =
+    /\b(?:fen|pgn|en passant)\b/i.test(scanText) ||
+    /\b(?:board position|legal moves|(?:pawn|knight|bishop|rook|queen|king) move)\b/i.test(scanText) ||
+    /\b(?:sudoku grid|tic-tac-toe|connect four|gomoku)\b/i.test(scanText) ||
+    /\b[a-h][1-8][-x][a-h][1-8]\b/.test(scanText) ||
+    /(?:^|[\s(])(?:1\.|[1-9]\d*\.)\s*(?:[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8]|O-O-O|O-O)/.test(scanText);
+
+  const isGamesSpatial = !isCode && (
+    CHESS_STRUCTURE || (
+      BARE_CHESS_WORD.test(scanText) &&
+      !/\b(?:history|champion|invented|origin|medieval|olympiad winner)\b/i.test(scanText)
+    )
+  );
+
+  if (isGamesSpatial) {
+    return {
+      isFastPath: true,
+      role: 'games_spatial',
       confidence: 'high',
       complexityScore,
       suggestedAction: 'dispatch_specialist'
@@ -356,7 +338,7 @@ export function classifyPreRoute<TRole extends string = string>(messages: Messag
   }
 
   // Open-ended trivia (Who directed X?, What is the capital of Y?)
-  if (/\b(?:who (?:was|wrote|directed|composed|invented|discovered)|what is the (?:capital of|[\w-]+\s+capital)|which country|what city)\b/i.test(scanText)) {
+  if (!BARE_CHESS_WORD.test(scanText) && /\b(?:who (?:was|wrote|directed|composed|invented|discovered)|what is the (?:capital of|[\w-]+\s+capital)|which country|what city)\b/i.test(scanText)) {
     return {
       isFastPath: true,
       role: 'general_fast',
