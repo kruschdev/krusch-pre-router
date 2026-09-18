@@ -1,0 +1,132 @@
+[
+  {
+    "domain": "comprehension_rc",
+    "expected_model": "qwen/qwen3-235b-a22b-2507",
+    "query": "Based on the provided passage, what was the primary cause of the treaty failure?"
+  },
+  {
+    "domain": "comprehension_rc",
+    "expected_model": "qwen/qwen3-235b-a22b-2507",
+    "query": "According to the following article, how did the researchers measure solar irradiance?"
+  },
+  {
+    "domain": "comprehension_rc",
+    "expected_model": "qwen/qwen3-235b-a22b-2507",
+    "query": "In the historical account above, what does the author imply about the diplomatic delegation?"
+  },
+  {
+    "domain": "comprehension_rc",
+    "expected_model": "qwen/qwen3-235b-a22b-2507",
+    "query": "Summarize the text provided above in three concise bullet points."
+  },
+  {
+    "domain": "reasoning_deep",
+    "expected_model": "deepseek/deepseek-v4-pro",
+    "query": "Calculate the diluted EPS and operating margin from this 10-K SEC filing."
+  },
+  {
+    "domain": "reasoning_deep",
+    "expected_model": "deepseek/deepseek-v4-pro",
+    "query": "Analyze the balance sheet cash flows and determine if there is a debt covenant breach."
+  },
+  {
+    "domain": "reasoning_deep",
+    "expected_model": "deepseek/deepseek-v4-pro",
+    "query": "What was the company's net income, EBITDA, and capital expenditure for fiscal year 2025?"
+  },
+  {
+    "domain": "reasoning_deep",
+    "expected_model": "deepseek/deepseek-v4-pro",
+    "query": "Provide a formal mathematical proof showing that the square root of 2 is irrational."
+  },
+  {
+    "domain": "games_spatial",
+    "expected_model": "Qwen/Qwen3-Coder-Next",
+    "query": "Evaluate this chess move: 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6."
+  },
+  {
+    "domain": "games_spatial",
+    "expected_model": "Qwen/Qwen3-Coder-Next",
+    "query": "Given the board position with FEN rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR, what is the best reply?"
+  },
+  {
+    "domain": "games_spatial",
+    "expected_model": "Qwen/Qwen3-Coder-Next",
+    "query": "Is Black in checkmate or stalemate in this endgame position?"
+  },
+  {
+    "domain": "games_spatial",
+    "expected_model": "Qwen/Qwen3-Coder-Next",
+    "query": "What are the rules for kingside castling when the f1 bishop has moved?"
+  },
+  {
+    "domain": "code",
+    "expected_model": "Qwen/Qwen3-Coder-Next",
+    "query": "Write an algorithm in TypeScript to detect cycles in a directed graph."
+  },
+  {
+    "domain": "code",
+    "expected_model": "Qwen/Qwen3-Coder-Next",
+    "query": "```python\ndef merge_sort(arr):\n    pass\n```\nImplement the merge step in python."
+  },
+  {
+    "domain": "code",
+    "expected_model": "Qwen/Qwen3-Coder-Next",
+    "query": "How do I implement an LRU cache with O(1) get and put in Rust?"
+  },
+  {
+    "domain": "code",
+    "expected_model": "Qwen/Qwen3-Coder-Next",
+    "query": "Fix this React custom hook: function useDebounce(value, delay) { ... }"
+  },
+  {
+    "domain": "code",
+    "expected_model": "Qwen/Qwen3-Coder-Next",
+    "query": "Write a SQL query to find all users who registered in the last 30 days and made at least two purchases."
+  },
+  {
+    "domain": "general_fast",
+    "expected_model": "google/gemini-3.1-flash-lite",
+    "query": "Translate this sentence into French: The weather in Paris is pleasant today."
+  },
+  {
+    "domain": "general_fast",
+    "expected_model": "google/gemini-3.1-flash-lite",
+    "query": "How do you say thank you very much in Japanese?"
+  },
+  {
+    "domain": "general_fast",
+    "expected_model": "google/gemini-3.1-flash-lite",
+    "query": "What are the symptoms and clinical diagnosis criteria for Lyme disease?"
+  },
+  {
+    "domain": "general_fast",
+    "expected_model": "google/gemini-3.1-flash-lite",
+    "query": "What is the capital of Australia, and what is its elevation?"
+  },
+  {
+    "domain": "general_fast",
+    "expected_model": "google/gemini-3.1-flash-lite",
+    "query": "Who directed the 1982 science fiction film Blade Runner?"
+  },
+  {
+    "domain": "factual_stem",
+    "expected_model": "deepseek/deepseek-v4-flash",
+    "query": "What is the kinetic energy of a 2 kg object moving at 5 m/s?"
+  },
+  {
+    "domain": "factual_stem",
+    "expected_model": "deepseek/deepseek-v4-flash",
+    "query": "Options:\nA. Mitochondria\nB. Ribosome\nC. Nucleus\nD. Endoplasmic reticulum\nWhich organelle is responsible for ATP synthesis?"
+  },
+  {
+    "domain": "factual_stem",
+    "expected_model": "deepseek/deepseek-v4-flash",
+    "query": "Explain the difference between utilitarianism and deontological moral philosophy."
+  },
+  {
+    "domain": "factual_stem",
+    "expected_model": "deepseek/deepseek-v4-flash",
+    "query": "What is the half-life of Carbon-14 and how is it used in radiocarbon dating?"
+  }
+]
