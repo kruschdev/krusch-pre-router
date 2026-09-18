@@ -30,6 +30,7 @@
     "prebench": "npm run build",
     "bench": "node benchmark/latency.bench.js",
     "harvest:ood": "node scripts/harvest-ood.js",
+    "test:harvest": "node scripts/harvest-ood.js test/fixtures/sample-traffic.jsonl --dry-run",
     "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [

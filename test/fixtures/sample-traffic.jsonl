@@ -1,0 +1,7 @@
+{"prompt": "Who was the world chess champion in 1972?", "userOverride": true, "actualAction": "delegate_to_l2", "category": "chess_history_trivia"}
+{"prompt": "Who invented the Sicilian Defense?", "userOverride": true, "actualAction": "delegate_to_l2", "category": "chess_history_trivia"}
+{"prompt": "In my notes {I wrote \"todo\"}", "userOverride": true, "actualAction": "delegate_to_l2", "category": "casual_braces"}
+{"prompt": "```markdown\n# Project Notes\nThis is pure prose documentation.\n```", "userOverride": true, "actualAction": "delegate_to_l2", "category": "markdown_prose_fence"}
+{"prompt": "Search engine ranking factors for e-commerce sites", "userOverride": true, "actualAction": "delegate_to_l2", "category": "search_engine_query"}
+{"prompt": "There is a high probability of heavy rain this afternoon.", "userOverride": true, "actualAction": "delegate_to_l2", "category": "conversational_probability"}
+{"prompt": "Our core values are woven into the DNA of the company.", "userOverride": true, "actualAction": "delegate_to_l2", "category": "metaphorical_dna"}

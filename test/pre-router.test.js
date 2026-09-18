@@ -147,6 +147,9 @@ test('classifySpecialistRole - Returns undefined on conversational/unstructured 
   assert.equal(classifySpecialistRole('Hey, how are you today?'), undefined);
   assert.equal(classifySpecialistRole('Tell me what you think about modern abstract art.'), undefined);
   assert.equal(classifySpecialistRole('What advice do you have for unwinding after work?'), undefined);
+  assert.equal(classifySpecialistRole('Who was the world chess champion in 1972?'), undefined);
+  assert.equal(classifySpecialistRole('Who invented the Sicilian Defense?'), undefined);
+  assert.equal(classifySpecialistRole('Search engine ranking factors for e-commerce sites'), undefined);
 });
 
 // 7. Defensive Copying & Immutability Test
@@ -386,6 +389,14 @@ test('classifyPreRoute - code-over-games precedence, tightened chess/JSON/fences
   assert.equal(chessHistory.isFastPath, false);
   assert.equal(chessHistory.role, undefined);
   assert.equal(chessHistory.suggestedAction, 'delegate_to_l2');
+  assert.equal(classifySpecialistRole('Who was the world chess champion in 1972?'), undefined);
+
+  // Chess opening trivia must cleanly miss to L2
+  const sicilianTrivia = classifyPreRoute('Who invented the Sicilian Defense?');
+  assert.equal(sicilianTrivia.isFastPath, false);
+  assert.equal(sicilianTrivia.role, undefined);
+  assert.equal(sicilianTrivia.suggestedAction, 'delegate_to_l2');
+  assert.equal(classifySpecialistRole('Who invented the Sicilian Defense?'), undefined);
 
   // 3. Discrete chess move notation routes to games_spatial
   const chessMoves = classifyPreRoute('1. e4 e5 2. Nf3 Nc6');
@@ -405,11 +416,28 @@ test('classifyPreRoute - code-over-games precedence, tightened chess/JSON/fences
   const markdownProse = classifyPreRoute('```markdown\n# Hello\nThis is pure prose documentation.\n```');
   assert.equal(markdownProse.role, undefined);
   assert.equal(markdownProse.isFastPath, false);
+  assert.equal(classifySpecialistRole('```markdown\n# Hello\nThis is pure prose documentation.\n```'), undefined);
 
   // 6. Legitimate code fence routes to code
   const pythonFence = classifyPreRoute('```python\ndef foo():\n  pass\n```');
   assert.equal(pythonFence.isFastPath, true);
   assert.equal(pythonFence.role, 'code');
+});
+
+// 18. OOD Harvest Pipeline Verification
+test('harvest:ood - Sample traffic log ingestion and stage-0 trap detection', async () => {
+  const { execSync } = await import('node:child_process');
+  const sampleLogPath = path.join(__dirname, 'fixtures', 'sample-traffic.jsonl');
+  
+  // Execute dry-run harvest
+  const output = execSync(`node scripts/harvest-ood.js "${sampleLogPath}" --dry-run`, {
+    cwd: path.resolve(__dirname, '..'),
+    encoding: 'utf8'
+  });
+
+  assert.ok(output.includes('Krusch Pre-Router OOD Harvest Pipeline'));
+  assert.ok(output.includes('Total Log Lines Parsed:    7'));
+  assert.ok(output.includes('Dry-run complete. No changes were written.'));
 });
 
 

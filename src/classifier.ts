@@ -266,6 +266,7 @@ export function classifyPreRoute<TRole extends string = string>(messages: Messag
 
   // 3. Chess & Spatial Board Games (State engines & discrete coordinates)
   const BARE_CHESS_WORD = /\b(?:chess|checkmate|stalemate|castling|zugzwang)\b/i;
+  const CHESS_TRIVIA_EXCLUSION = /\b(?:chess|checkmate|stalemate|castling|zugzwang|sicilian|defense|opening|gambit|endgame)\b/i;
   const CHESS_STRUCTURE =
     /\b(?:fen|pgn|en passant)\b/i.test(scanText) ||
     /\b(?:board position|legal moves|(?:pawn|knight|bishop|rook|queen|king) move)\b/i.test(scanText) ||
@@ -338,7 +339,15 @@ export function classifyPreRoute<TRole extends string = string>(messages: Messag
   }
 
   // Open-ended trivia (Who directed X?, What is the capital of Y?)
-  if (!BARE_CHESS_WORD.test(scanText) && /\b(?:who (?:was|wrote|directed|composed|invented|discovered)|what is the (?:capital of|[\w-]+\s+capital)|which country|what city)\b/i.test(scanText)) {
+  // Requires structured role cues for 'who was' (e.g. architect, president, author)
+  // Blocks game/chess terminology (e.g., 'Who invented the Sicilian Defense?') to delegate to L2
+  const isStructuredTrivia =
+    !CHESS_TRIVIA_EXCLUSION.test(scanText) && (
+      /\bwho was\s+(?:the\s+)?(?:primary\s+)?(?:architect|author|founder|president|director|composer|painter|sculptor|leader|monarch|emperor|prime minister|creator)\b/i.test(scanText) ||
+      /\b(?:who (?:wrote|directed|composed|invented|discovered)|what is the (?:capital of|[\w-]+\s+capital)|which country|what city)\b/i.test(scanText)
+    );
+
+  if (isStructuredTrivia) {
     return {
       isFastPath: true,
       role: 'general_fast',
@@ -396,8 +405,13 @@ export function classifyPreRoute<TRole extends string = string>(messages: Messag
 
 /**
  * Classifies a prompt into one of the 6 core domain specialist roles (or custom role).
+ * Returns undefined if the prompt lacks deterministic domain signals (miss/delegate to L2).
  * @deprecated Use classifyPreRoute() or createPreRouter() instead for full PreRouteResult metadata.
  */
-export function classifySpecialistRole<TRole extends string = string>(messages: Message[] | string, options?: ClassifierOptions<TRole>): (DefaultSpecialistRole | TRole) | undefined {
-  return classifyPreRoute(messages, options).role;
+export function classifySpecialistRole<TRole extends string = string>(
+  messages: Message[] | string, 
+  options?: ClassifierOptions<TRole>
+): (DefaultSpecialistRole | TRole) | undefined {
+  const result = classifyPreRoute(messages, options);
+  return result.isFastPath ? result.role : undefined;
 }

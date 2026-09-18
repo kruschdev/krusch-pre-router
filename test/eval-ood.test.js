@@ -37,6 +37,7 @@ test('OOD Evaluation - Measure Wrong-Specialist (False-Positive) Rate on Non-Hol
       cleanDelegations++;
       assert.equal(res.role, undefined, `Missed prompts must have undefined role`);
       assert.equal(res.suggestedAction, 'delegate_to_l2', `Unclassified prompts must delegate to L2`);
+      assert.equal(classifySpecialistRole(prompt), undefined, `classifySpecialistRole must return undefined on miss`);
     }
   }
 

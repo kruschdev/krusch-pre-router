@@ -1,5 +1,40 @@
 [
   {
+    "category": "harvested_production",
+    "query": "Who was the world chess champion in 1972?",
+    "harvestedAt": "2026-09-18T23:29:44.190Z"
+  },
+  {
+    "category": "harvested_production",
+    "query": "Who invented the Sicilian Defense?",
+    "harvestedAt": "2026-09-18T23:29:44.200Z"
+  },
+  {
+    "category": "harvested_production",
+    "query": "In my notes {I wrote \"todo\"}",
+    "harvestedAt": "2026-09-18T23:29:44.202Z"
+  },
+  {
+    "category": "harvested_production",
+    "query": "```markdown\n# Project Notes\nThis is pure prose documentation.\n```",
+    "harvestedAt": "2026-09-18T23:29:44.202Z"
+  },
+  {
+    "category": "harvested_production",
+    "query": "Search engine ranking factors for e-commerce sites",
+    "harvestedAt": "2026-09-18T23:29:44.203Z"
+  },
+  {
+    "category": "harvested_production",
+    "query": "There is a high probability of heavy rain this afternoon.",
+    "harvestedAt": "2026-09-18T23:29:44.203Z"
+  },
+  {
+    "category": "harvested_production",
+    "query": "Our core values are woven into the DNA of the company.",
+    "harvestedAt": "2026-09-18T23:29:44.203Z"
+  },
+  {
     "category": "everyday_conversational",
     "query": "Good morning! How are you doing today?"
   },

@@ -31,11 +31,12 @@ const DEFAULT_FIXTURE_PATH = path.resolve(__dirname, '../test/fixtures/ood-promp
 function printHelp() {
   console.log(`
 Usage:
-  node scripts/harvest-ood.js <path-to-logs.jsonl> [options]
+  node scripts/harvest-ood.js [path-to-logs.jsonl] [options]
 
 Options:
   --target <path>    Target JSON fixture file (default: test/fixtures/ood-prompts.json)
   --category <name>  Category label for harvested prompts (default: harvested_production)
+  --prepend          Prepend new traps to the start of the fixture file instead of appending
   --dry-run          Simulate without writing to target fixture
   --force-all        Test every prompt in log for false-positive triggers
   --help, -h         Show help
@@ -97,6 +98,7 @@ async function main() {
   let category = 'harvested_production';
   let dryRun = false;
   let forceAll = false;
+  let prepend = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -108,8 +110,18 @@ async function main() {
       dryRun = true;
     } else if (arg === '--force-all') {
       forceAll = true;
+    } else if (arg === '--prepend') {
+      prepend = true;
     } else if (!arg.startsWith('-') && !logFilePath) {
       logFilePath = path.resolve(process.cwd(), arg);
+    }
+  }
+
+  // Fallback to sample traffic fixture if no log file argument is specified
+  if (!logFilePath) {
+    const defaultSamplePath = path.resolve(__dirname, '../test/fixtures/sample-traffic.jsonl');
+    if (fs.existsSync(defaultSamplePath)) {
+      logFilePath = defaultSamplePath;
     }
   }
 
@@ -206,14 +218,18 @@ async function main() {
     }
 
     if (!dryRun) {
-      const updatedFixtures = [...existingFixtures, ...newTraps];
+      const updatedFixtures = prepend 
+        ? [...newTraps, ...existingFixtures] 
+        : [...existingFixtures, ...newTraps];
       fs.writeFileSync(targetPath, JSON.stringify(updatedFixtures, null, 2) + '\n', 'utf8');
-      console.log(`\n✅ Successfully wrote ${updatedFixtures.length} total fixtures to ${targetPath}`);
-    } else {
-      console.log(`\n💡 Dry-run complete. No changes were written.`);
+      console.log(`\n✅ Successfully wrote ${updatedFixtures.length} total fixtures to ${targetPath} (${prepend ? 'prepended' : 'appended'})`);
     }
   } else {
     console.log(`\n✨ No new OOD traps detected in provided logs.`);
+  }
+
+  if (dryRun) {
+    console.log(`\n💡 Dry-run complete. No changes were written.`);
   }
   console.log(`======================================================\n`);
 }
