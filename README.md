@@ -166,18 +166,44 @@ Benchmarked on **Intel Core i7-5820K (12 cores @ 3.30GHz), 32GB RAM, Linux x86_6
 
 ---
 
-## 🧪 Evaluation & Accuracy Testing
+## 🎯 When to Use (and When NOT to Use)
 
-The test suite validates performance across both in-domain specialist traffic and out-of-distribution conversational traffic:
+`krusch-pre-router` is an **opinionated Stage-0 syntactic gate**, not a semantic intelligence layer.
+
+### ✅ When to Use
+* **In front of neural routers**: Place it directly before RouteLLM, NotDiamond, or an LLM-as-a-router to bypass 15ms–50ms embedding calculations on syntactically obvious prompts (code fences, SQL, LaTeX formulas, chess FEN, language translations).
+* **Agent retry loops & evaluation swarms**: Use `createPreRouter()` to cache repeated prompts and benchmark templates at ~1.5 µs latency with zero network overhead.
+* **Living domain configuration**: Extend with `customSpecialistRules` for your proprietary tags, ticket schemas, or internal API calls, and use `harvest:ood` to turn production misroutes into regression tests.
+
+### ❌ When NOT to Use
+* **As a standalone semantic router**: Deterministic heuristics cannot infer nuanced communicative intent. Prompts without syntax footprints must miss to an L2 neural or frontier model.
+* **For medical or legal dispatch**: Never rely on regex keywords for clinical diagnosis or legal advice. The default `general_fast` classification for medical terminology is a lightweight swarm heuristic; production systems should override it or allow medical queries to delegate to L2.
+* **When expecting 100% recall**: This gate is intentionally designed for **high precision, low recall**. If a query is ambiguous, it cleanly returns `isFastPath: false` and `role: undefined`.
+
+---
+
+## 🧪 Evaluation & Regression Hygiene
+
+The test suite validates performance across both in-domain specialist traffic and out-of-distribution adversarial traffic:
 
 ```bash
 npm test
 ```
 
-* **Holdout Specialist Dataset (100 prompts)**: Evaluates template-free prompts across all 6 target domains (Code, STEM, Deep Reasoning, Reading Comprehension, Chess/Spatial, General Fast). Target domain accuracy: **100% (100/100)**.
-* **Out-of-Distribution (OOD) Dataset (100 prompts)**: Evaluates open-world conversational chat, subjective advice, creative writing, and adversarial traps (e.g. colloquial "force", "mass", "pipeline", "function of sleep").
-  * **Clean L2 Delegation**: **100.0% (100/100)**
-  * **Wrong-Specialist Rate (False-Positive Rate)**: **0.0% (0/100)**
+* **Holdout Specialist Dataset (100 prompts)**: Author-curated regression suite across all 6 target domains (Code, STEM, Deep Reasoning, Reading Comprehension, Chess/Spatial, General Fast). Target domain accuracy: **100% (100/100)**.
+* **Out-of-Distribution (OOD) Adversarial Dataset (115 prompts)**: Regression suite evaluating conversational chat, subjective advice, and colloquial keyword traps (e.g. conversational "probability of rain", corporate "DNA", plain prose in backticks, non-STEM multiple-choice questions, and metaphorical "symptoms of burnout").
+  * **Clean L2 Delegation**: **100.0% (115/115)**
+  * **Wrong-Specialist Rate (False-Positive Rate)**: **0.0% (0/115)**
+
+> **Important Note on Accuracy Numbers**: 100% holdout accuracy and 0% FPR reflect regression suite hygiene against author test fixtures, not an external, independent benchmark. A regex classifier tuned to fixed fixtures will only stay accurate if maintained as a **living configuration**. Run `npm run harvest:ood` against your actual production logs to capture false positives and continuously harden your rules.
+
+---
+
+## 🛡️ Large Payload & ReDoS Safety
+
+Large pasted documents, multi-megabyte error dumps, or log files can degrade regex engines through catastrophic backtracking or unbounded string scanning:
+* **Bounded Scanning Window**: `classifyPreRoute` bounds heuristic analysis to a max 8,000-character window (sampling the first 4,000 and last 4,000 characters). Syntactic markers, code fences, imports, and task instructions reside at the boundaries.
+* **Deterministic Execution**: Bounded sampling guarantees sub-15µs CPU execution even on 5MB payloads, eliminating ReDoS vectors. Full text length is preserved for complexity scoring.
 
 ---
 

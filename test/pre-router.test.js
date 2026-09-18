@@ -259,3 +259,86 @@ test('createPreRouter - onRoute exceptions are swallowed and do not disrupt rout
   });
 });
 
+// 12. Precision: Markdown Code Fence Tightening
+test('classifyPreRoute - code fence requires language tag or code constructs to trigger code role', () => {
+  // Untagged plain prose inside backticks must delegate to L2
+  const plainProse = '```\nDear team,\nPlease review the minutes from our all-hands meeting.\n```';
+  const proseRes = classifyPreRoute(plainProse);
+  assert.equal(proseRes.isFastPath, false, 'Plain prose in backticks must not fast-path to code');
+  assert.equal(proseRes.role, undefined);
+
+  // Tagged code block routes to code
+  const taggedCode = '```python\nx = 1\n```';
+  const taggedRes = classifyPreRoute(taggedCode);
+  assert.equal(taggedRes.isFastPath, true);
+  assert.equal(taggedRes.role, 'code');
+
+  // Untagged block with explicit code constructs routes to code
+  const untaggedCode = '```\nfunction calculateTax(subtotal) {\n  return subtotal * 0.08;\n}\n```';
+  const untaggedRes = classifyPreRoute(untaggedCode);
+  assert.equal(untaggedRes.isFastPath, true);
+  assert.equal(untaggedRes.role, 'code');
+});
+
+// 13. Precision: STEM Qualified Keyword Gating
+test('classifyPreRoute - conversational probability and metaphorical DNA cleanly delegate to L2', () => {
+  // Conversational probability must delegate to L2
+  const weatherRes = classifyPreRoute('There is a high probability of heavy rain this afternoon.');
+  assert.equal(weatherRes.isFastPath, false);
+  assert.equal(weatherRes.role, undefined);
+
+  // Mathematical probability routes to factual_stem
+  const mathProbRes = classifyPreRoute('Calculate the probability of drawing three red aces from the deck.');
+  assert.equal(mathProbRes.isFastPath, true);
+  assert.equal(mathProbRes.role, 'factual_stem');
+
+  // Metaphorical DNA must delegate to L2
+  const metaphorDnaRes = classifyPreRoute('Collaboration and kindness are deeply woven into the DNA of our culture.');
+  assert.equal(metaphorDnaRes.isFastPath, false);
+  assert.equal(metaphorDnaRes.role, undefined);
+
+  // Biological DNA routes to factual_stem
+  const bioDnaRes = classifyPreRoute('Explain how CRISPR-Cas9 induces double-strand DNA breaks.');
+  assert.equal(bioDnaRes.isFastPath, true);
+  assert.equal(bioDnaRes.role, 'factual_stem');
+});
+
+// 14. Precision: Multiple-Choice Decoupling from STEM
+test('classifyPreRoute - non-STEM multiple choice questions do not dump into factual_stem', () => {
+  const historyMCQ = `Options:
+A. Paris
+B. London
+C. Rome
+D. Madrid
+Which city hosted the 1908 Olympic Games?`;
+  const res = classifyPreRoute(historyMCQ);
+  // Should NOT be factual_stem
+  assert.notEqual(res.role, 'factual_stem', 'Non-STEM MCQ must not be dumped into factual_stem');
+
+  const managementMCQ = `Which style of leadership is most effective for creative agencies?
+A. Authoritarian
+B. Democratic
+C. Laissez-faire
+D. Paternalistic`;
+  const res2 = classifyPreRoute(managementMCQ);
+  assert.equal(res2.isFastPath, false, 'Subjective management MCQ should delegate to L2');
+  assert.equal(res2.role, undefined);
+});
+
+// 15. Safety: Large Payload Bounded Scanning
+test('classifyPreRoute - large payloads (>10KB) evaluate safely without latency regression or ReDoS', () => {
+  // Construct a 20KB payload of repetitive text with code instruction at top
+  const filler = 'The quick brown fox jumps over the lazy dog. '.repeat(400);
+  const largePrompt = `Write a Python function to compute Fibonacci numbers.\n${filler}`;
+  
+  const start = performance.now();
+  const res = classifyPreRoute(largePrompt);
+  const elapsedMs = performance.now() - start;
+
+  assert.equal(res.isFastPath, true);
+  assert.equal(res.role, 'code');
+  // Bounded scan must execute well under 5ms even on cold run
+  assert.ok(elapsedMs < 5.0, `Expected elapsed time < 5ms, got ${elapsedMs}ms`);
+});
+
+

@@ -398,5 +398,65 @@
   {
     "category": "adversarial_metaphors",
     "query": "Tell me an uplifting story about neighbors helping each other during a winter storm."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "There is a high probability of heavy rain this afternoon across the valley."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "In all probability, our team will arrive at the cabin before sunset."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "What is the probability that our connecting flight from Seattle gets delayed?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Our dedication to quality customer service is deeply embedded in the company's DNA."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "The documentary explored how music and jazz are woven into the DNA of New Orleans."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "```\nDear customer,\nThank you for reaching out. We have received your support ticket.\n```"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "```\nMeeting Notes:\n- Finalize agenda\n- Confirm venue\n- Review budget\n```"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Options:\nA. Paris\nB. London\nC. Rome\nD. Madrid\nWhich city hosted the 1908 Olympic Games?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Which style of leadership is most effective for creative agencies?\nA. Authoritarian\nB. Democratic\nC. Laissez-faire\nD. Paternalistic"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "What tone does the poet adopt in the final stanza?\nA. Melancholic\nB. Jubilant\nC. Cynical\nD. Indifferent"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Burnout and chronic fatigue are common symptoms of an unbalanced workload."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "The high employee turnover rate is a symptom of a deeper communication breakdown."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "Can you diagnose why our marketing campaign failed to generate qualified leads?"
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "She was exceptionally patient with the upset customer on the phone."
+  },
+  {
+    "category": "adversarial_metaphors",
+    "query": "A healthy emergency savings account is the best prescription for financial anxiety."
   }
 ]

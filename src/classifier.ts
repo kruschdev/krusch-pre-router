@@ -87,6 +87,8 @@ export function pruneText(text: string): string {
   return cleaned.replace(/\s+/g, ' ').replace(/([?!.,;])\1+/g, '$1').trim();
 }
 
+const MAX_PRE_ROUTE_SCAN_CHARS = 8000;
+
 /**
  * Continuous complexity scorer [0.0, 1.0].
  * Provides fine-grained probability for speculative hedging or routing gates.
@@ -113,24 +115,29 @@ export function evaluateComplexityScore(messages: Message[] | string, options?: 
   const lengthRatio = Math.min(1.0, fullText.length / lengthThreshold);
   score += lengthRatio * 0.60;
 
+  // Bounded scan slice to prevent regex lag or ReDoS on large payloads
+  const scanText = fullText.length > MAX_PRE_ROUTE_SCAN_CHARS
+    ? fullText.slice(0, 4000) + '\n' + fullText.slice(-4000)
+    : fullText;
+
   // Structural markers (formatted payloads like HTML/XML or nested JSON data)
-  if (/<\/?([a-z][a-z0-9]*)\b[^>]*>/i.test(fullText)) score += 0.20;
-  if (/\{[\s\S]*"[\s\S]*\}/.test(fullText)) score += 0.20;
+  if (/<\/?([a-z][a-z0-9]*)\b[^>]*>/i.test(scanText)) score += 0.20;
+  if (/\{[\s\S]*"[\s\S]*\}/.test(scanText)) score += 0.20;
 
   // Moderate cognitive / comparative inquiry (borderline indicators)
-  if (/\b(compare|contrast|explain why|how does|tradeoffs|pros and cons|difference between)\b/i.test(fullText)) {
+  if (/\b(compare|contrast|explain why|how does|tradeoffs|pros and cons|difference between)\b/i.test(scanText)) {
     score += 0.25;
   }
 
   // High cognitive complexity verbs
-  if (/\b(analyze|evaluate|architect|synthesize|speculate|refactor|debug|test|benchmark)\b/i.test(fullText)) {
+  if (/\b(analyze|evaluate|architect|synthesize|speculate|refactor|debug|test|benchmark)\b/i.test(scanText)) {
     score += 0.35;
   }
 
   // Custom regex rules
   if (options?.customRules) {
     for (const rule of options.customRules) {
-      if (rule.test(fullText)) {
+      if (rule.test(scanText)) {
         score += 0.35;
         break;
       }
@@ -197,10 +204,18 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
 
   const complexityScore = evaluateComplexityScore(fullText, options);
 
+  // Bounded scan window: if text is huge (e.g. pasted logs, multi-page docs),
+  // sample the head and tail (4KB each) where syntactic markers, code fences,
+  // imports, or task instructions reside. This guarantees deterministic µs execution
+  // and prevents catastrophic backtracking / string scan penalties.
+  const scanText = fullText.length > MAX_PRE_ROUTE_SCAN_CHARS
+    ? fullText.slice(0, 4000) + '\n' + fullText.slice(-4000)
+    : fullText;
+
   // 0. Custom Specialist Overrides (User-defined domain rules)
   if (options?.customSpecialistRules && options.customSpecialistRules.length > 0) {
     for (const rule of options.customSpecialistRules) {
-      if (rule.pattern.test(fullText)) {
+      if (rule.pattern.test(scanText)) {
         return {
           isFastPath: true,
           role: rule.role,
@@ -214,16 +229,16 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
 
   // 1. Paragraph Reading Comprehension & Verification (qwen3-235b)
   const isReadingComprehension = 
-    /\b(?:based on (?:the|this|that)?\s*(?:provided|following|above|below)?\s*["']?(?:text|passage|article|excerpt|document|context|paragraph|historical account|case study)["']?)/i.test(fullText) ||
-    /\b(?:according to (?:the|this|that)?\s*(?:provided|following|above|below)?\s*["']?(?:text|passage|article|excerpt|document|context|historical account|case study)["']?)/i.test(fullText) ||
-    /\b(?:in (?:the|this)\s+(?:provided|following)?\s*["']?(?:text|passage|article|excerpt|document|paragraph|case study)["']?\s+(?:above|below|provided)?)/i.test(fullText) ||
-    /\b(?:in paragraph \d+)\b/i.test(fullText) ||
-    /\b(?:summarize (?:the|this)\s+["']?(?:text|passage|article|excerpt|document|chapter|section)["']?)/i.test(fullText) ||
-    /\b(?:what does the author (?:mean|state|imply|claim|conclude|suggest|argue))\b/i.test(fullText) ||
-    /\b(?:main thesis of the author|author's main argument)\b/i.test(fullText) ||
-    /\b(?:from the\s+["']?(?:text|passage|excerpt|article|document)["']?\s+(?:above|below)?)/i.test(fullText) ||
-    /\b(?:reading comprehension|comprehension question|evaluate (?:whether|if) (?:the|this) (?:statement|claim|assertion) is (?:true|false|accurate|supported))\b/i.test(fullText) ||
-    /\b(?:information provided in (?:the|this)\s+["']?(?:preceding|provided|following)?\s*(?:text|case study|article|passage)["']?)/i.test(fullText);
+    /\b(?:based on (?:the|this|that)?\s*(?:provided|following|above|below)?\s*["']?(?:text|passage|article|excerpt|document|context|paragraph|historical account|case study)["']?)/i.test(scanText) ||
+    /\b(?:according to (?:the|this|that)?\s*(?:provided|following|above|below)?\s*["']?(?:text|passage|article|excerpt|document|context|historical account|case study)["']?)/i.test(scanText) ||
+    /\b(?:in (?:the|this)\s+(?:provided|following)?\s*["']?(?:text|passage|article|excerpt|document|paragraph|case study)["']?\s+(?:above|below)?)/i.test(scanText) ||
+    /\b(?:in paragraph \d+)\b/i.test(scanText) ||
+    /\b(?:summarize (?:the|this)\s+["']?(?:text|passage|article|excerpt|document|chapter|section)["']?)/i.test(scanText) ||
+    /\b(?:what does the author (?:mean|state|imply|claim|conclude|suggest|argue))\b/i.test(scanText) ||
+    /\b(?:main thesis of the author|author's main argument)\b/i.test(scanText) ||
+    /\b(?:from the\s+["']?(?:text|passage|excerpt|article|document)["']?\s+(?:above|below)?)/i.test(scanText) ||
+    /\b(?:reading comprehension|comprehension question|evaluate (?:whether|if) (?:the|this) (?:statement|claim|assertion) is (?:true|false|accurate|supported))\b/i.test(scanText) ||
+    /\b(?:information provided in (?:the|this)\s+["']?(?:preceding|provided|following)?\s*(?:text|case study|article|passage)["']?)/i.test(scanText);
 
   if (isReadingComprehension) {
     return {
@@ -237,12 +252,12 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
 
   // 2. Chess & Spatial Board Games (Qwen3-Coder-Next via games_spatial)
   const isChess = 
-    /\b(?:chess|checkmate|stalemate|castling|fen|pgn|en passant|zugzwang)\b/i.test(fullText) ||
-    /\b(?:board position|legal moves|pawn move|knight move|bishop move|rook move|queen move|king move)\b/i.test(fullText) ||
-    /\b(?:sudoku grid|tic-tac-toe|connect four|gomoku)\b/i.test(fullText) ||
-    /\b[a-h][1-8]-[a-h][1-8]\b/.test(fullText) ||
-    /(?:^|\s)1\.\s*(?:e4|d4|c4|Nf3|g3|f4|Nc3|b3|[a-h][34])\b/i.test(fullText) ||
-    /\b(?:e4\s+(?:e5|c5|e6|c6)|d4\s+(?:d5|Nf6|g6)|Nf3\s+(?:d5|Nf6))\b/i.test(fullText);
+    /\b(?:chess|checkmate|stalemate|castling|fen|pgn|en passant|zugzwang)\b/i.test(scanText) ||
+    /\b(?:board position|legal moves|pawn move|knight move|bishop move|rook move|queen move|king move)\b/i.test(scanText) ||
+    /\b(?:sudoku grid|tic-tac-toe|connect four|gomoku)\b/i.test(scanText) ||
+    /\b[a-h][1-8]-[a-h][1-8]\b/.test(scanText) ||
+    /(?:^|\s)1\.\s*(?:e4|d4|c4|Nf3|g3|f4|Nc3|b3|[a-h][34])\b/i.test(scanText) ||
+    /\b(?:e4\s+(?:e5|c5|e6|c6)|d4\s+(?:d5|Nf6|g6)|Nf3\s+(?:d5|Nf6))\b/i.test(scanText);
 
   if (isChess) {
     return {
@@ -256,26 +271,27 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
 
   // 3. Code Generation, Refactoring & Algorithm Synthesis (Qwen3-Coder-Next)
   const isCode = 
-    // Markdown code blocks
-    /```/i.test(fullText) ||
+    // Markdown code blocks with explicit language identifier or inline code constructs
+    /```(?:bash|sh|zsh|python|py|javascript|js|typescript|ts|rust|rs|go|golang|c|cpp|c\+\+|c#|cs|java|html|css|json|yaml|yml|sql|dockerfile|graphql|ruby|php|swift|kotlin|scala|r|lua|perl|markdown|md|shell|wasm|toml|ini|diff)\b/i.test(scanText) ||
+    /```[\s\S]*?\b(?:def\s+\w+|function\s+\w+|class\s+\w+|import\s+[\w{}*]+|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|return\s+|console\.log|SELECT\s+|INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM)\b[\s\S]*?```/i.test(scanText) ||
     // Intent to write / implement / refactor / debug / optimize code
-    /\b(?:write|create|implement|build|refactor|debug|fix|optimize|convert)\b[\s\S]{0,60}\b(?:code|script|function|class|method|algorithm|api|endpoint|sql query|component|hook|unit test|test suite|decorator|type|interface|database schema|middleware|resolver|generator|(?:ci\/cd|data|etl|build|deployment)\s+pipeline|dockerfile|regex|callback|promise|async\/await|binary search|quicksort|sorting|bfs|dfs)\b/i.test(fullText) ||
-    /\b(?:how (?:do|can) I (?:implement|code|write|program|fix|debug|test|optimize|refactor))\b/i.test(fullText) ||
-    /\b(?:fix this (?:code|bug|error|issue|exception|stack trace|syntax|crash|warning))\b/i.test(fullText) ||
-    /\b(?:unit test|test suite|test case|pytest|jest|vitest|mocha|cargo test)\b/i.test(fullText) ||
+    /\b(?:write|create|implement|build|refactor|debug|fix|optimize|convert)\b[\s\S]{0,60}\b(?:code|script|function|class|method|algorithm|api|endpoint|sql query|component|hook|unit test|test suite|decorator|type|interface|database schema|middleware|resolver|generator|(?:ci\/cd|data|etl|build|deployment)\s+pipeline|dockerfile|regex|callback|promise|async\/await|binary search|quicksort|sorting|bfs|dfs)\b/i.test(scanText) ||
+    /\b(?:how (?:do|can) I (?:implement|code|write|program|fix|debug|test|optimize|refactor))\b/i.test(scanText) ||
+    /\b(?:fix this (?:code|bug|error|issue|exception|stack trace|syntax|crash|warning))\b/i.test(scanText) ||
+    /\b(?:unit test|test suite|test case|pytest|jest|vitest|mocha|cargo test)\b/i.test(scanText) ||
     // Stack traces and runtime errors
-    /(?:Traceback \(most recent call last\)|TypeError:|SyntaxError:|ReferenceError:|NullPointerException|IndexOutOfBoundsException|ModuleNotFoundError:|panic:|Segmentation fault|SIGSEGV|Uncaught Error:)/i.test(fullText) ||
+    /(?:Traceback \(most recent call last\)|TypeError:|SyntaxError:|ReferenceError:|NullPointerException|IndexOutOfBoundsException|ModuleNotFoundError:|panic:|Segmentation fault|SIGSEGV|Uncaught Error:)/i.test(scanText) ||
     // Language & Framework specific terms combined with coding keywords
-    (/\b(?:typescript|javascript|python|rust|golang|c\+\+|cpp|c#|java|scala|kotlin|swift|ruby|php|react|vue|angular|svelte|next\.js|node\.js|express|fastapi|django|flask|graphql|dockerfile|github actions|kubernetes|k8s|css flexbox|css grid|tailwind|sql query|postgresql|sqlite|redis|mongodb)\b/i.test(fullText) &&
-     /\b(?:error|bug|issue|exception|function|class|component|hook|query|schema|type|import|export|install|build|compile|syntax|loop|re-render|memory leak|thread|mutex|deadlock|concurrency|async|await|promise|callback|iterator|package|module|resolver|endpoint|route|layout|generic|workflow|search|sort|algorithm)\b/i.test(fullText)) ||
+    (/\b(?:typescript|javascript|python|rust|golang|c\+\+|cpp|c#|java|scala|kotlin|swift|ruby|php|react|vue|angular|svelte|next\.js|node\.js|express|fastapi|django|flask|graphql|dockerfile|github actions|kubernetes|k8s|css flexbox|css grid|tailwind|sql query|postgresql|sqlite|redis|mongodb)\b/i.test(scanText) &&
+     /\b(?:error|bug|issue|exception|function|class|component|hook|query|schema|type|import|export|install|build|compile|syntax|loop|re-render|memory leak|thread|mutex|deadlock|concurrency|async|await|promise|callback|iterator|package|module|resolver|endpoint|route|layout|generic|workflow|search|sort|algorithm)\b/i.test(scanText)) ||
     // Programming keywords and signatures (require parameter parentheses or assignment)
-    /\b(?:def\s+[a-zA-Z_]\w*\s*\(|function\s+[a-zA-Z_]\w*\s*\(|const\s+[a-zA-Z_]\w*\s*=|let\s+[a-zA-Z_]\w*\s*=|var\s+[a-zA-Z_]\w*\s*=|fn\s+[a-zA-Z_]\w*\s*\(|func\s+(?:\([a-zA-Z0-9_*\s]+\)\s*)?[a-zA-Z_]\w*\s*\(|class\s+[a-zA-Z_]\w*\s*(?:extends|implements|\{|\:)|public\s+(?:static\s+)?void|import\s+.*\s+from|from\s+.*\s+import|#include\s+<|require\(['"].*['"]\)|package\s+main|console\.log\(|println!|std::|fmt\.Println)\b/.test(fullText) ||
+    /\b(?:def\s+[a-zA-Z_]\w*\s*\(|function\s+[a-zA-Z_]\w*\s*\(|const\s+[a-zA-Z_]\w*\s*=|let\s+[a-zA-Z_]\w*\s*=|var\s+[a-zA-Z_]\w*\s*=|fn\s+[a-zA-Z_]\w*\s*\(|func\s+(?:\([a-zA-Z0-9_*\s]+\)\s*)?[a-zA-Z_]\w*\s*\(|class\s+[a-zA-Z_]\w*\s*(?:extends|implements|\{|\:)|public\s+(?:static\s+)?void|import\s+.*\s+from|from\s+.*\s+import|#include\s+<|require\(['"].*['"]\)|package\s+main|console\.log\(|println!|std::|fmt\.Println)\b/.test(scanText) ||
     // SQL DDL / DML
-    /\b(?:SELECT\s+[\s\S]+?\s+FROM|INSERT\s+INTO|UPDATE\s+[\s\S]+?\s+SET|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE)\b/i.test(fullText) ||
+    /\b(?:SELECT\s+[\s\S]+?\s+FROM|INSERT\s+INTO|UPDATE\s+[\s\S]+?\s+SET|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE)\b/i.test(scanText) ||
     // React hooks (strictly case-sensitive)
-    /\buse[A-Z][a-zA-Z0-9_]+\b/.test(fullText) ||
+    /\buse[A-Z][a-zA-Z0-9_]+\b/.test(scanText) ||
     // Types, Generics & Systems programming constructs
-    /\b(?:generic type|type alias|interface\s+[a-zA-Z_]|struct\s+[a-zA-Z_]|impl\s+[a-zA-Z_]|Arc<Mutex<|RwLock<|flexbox layout|token bucket|lru cache|event emitter|pull request|git commit|git diff)\b/i.test(fullText);
+    /\b(?:generic type|type alias|interface\s+[a-zA-Z_]|struct\s+[a-zA-Z_]|impl\s+[a-zA-Z_]|Arc<Mutex<|RwLock<|flexbox layout|token bucket|lru cache|event emitter|pull request|git commit|git diff)\b/i.test(scanText);
 
   if (isCode) {
     return {
@@ -289,8 +305,8 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
 
   // 4. Financial Statements, Balance Sheets & Formal Proofs (deepseek-v4-pro)
   const isDeepReasoning = 
-    /\b(?:net income|operating income|operating margin|gross margin|fiscal year|cash flow[s]?|diluted eps|earnings per share|balance sheet|sec filing|10-k|10-q|ebitda|ebit|cagr|amortization|depreciation|discounted cash flow|dcf model|valuation model|p\/e ratio|return on equity|roe|roic|capital expenditure|capex|free cash flow|wacc|working capital|covenant breach)\b/i.test(fullText) ||
-    /\b(?:formal (?:deductive )?logic proof|formal mathematical proof|deductive reasoning|proof by contradiction|mathematical proof|game theory|nash equilibrium|prisoner's dilemma|pareto optimal(?:ity|)?|counterfactual analysis|formal logic proof|first-order logic|syllogism proof|grim trigger|tit-for-tat|first fundamental theorem)\b/i.test(fullText);
+    /\b(?:net income|operating income|operating margin|gross margin|fiscal year|cash flow[s]?|diluted eps|earnings per share|balance sheet|sec filing|10-k|10-q|ebitda|ebit|cagr|amortization|depreciation|discounted cash flow|dcf model|valuation model|p\/e ratio|return on equity|roe|roic|capital expenditure|capex|free cash flow|wacc|working capital|covenant breach)\b/i.test(scanText) ||
+    /\b(?:formal (?:deductive )?logic proof|formal mathematical proof|deductive reasoning|proof by contradiction|mathematical proof|game theory|nash equilibrium|prisoner's dilemma|pareto optimal(?:ity|)?|counterfactual analysis|formal logic proof|first-order logic|syllogism proof|grim trigger|tit-for-tat|first fundamental theorem)\b/i.test(scanText);
 
   if (isDeepReasoning) {
     return {
@@ -311,8 +327,10 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
     /\b(?:from\s+\w+\s+(?:to|into)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin|english))\b/i,
     /\b(?:(?:to|into)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin))\b/i,
     /\b(?:geograph|latitude|longitude|elevation|continent|bordering countries|countries that border|capital of|mountain range|peninsula)\b/i,
-    /\b(?:symptom|clinic|diagnos|syndrome|disease|prescribe|prognosis|pharmacolog(?:y|ical)|lyme disease)\b/i,
-    /\bpatient(?:'s)?\s+(?:presents with|symptoms|history|condition|chart|diagnosis|care|vitals|health|medication|response|treatment|admitted|intake|in the clinic|in hospital)\b/i,
+    // Clinical medicine, pathology & pharmacology (distinguished from metaphorical symptoms/diagnoses)
+    /\b(?:clinical diagnosis|differential diagnosis|pathology|pathogen|syndrome|prognosis|pharmacolog(?:y|ical)|lyme disease)\b/i,
+    /\b(?:clinical symptoms|symptoms and (?:treatment|clinical|diagnosis)|treatment options for (?:lyme|diabetes|cancer|asthma|hypertension|infection|disease)|prescribe (?:medication|drugs|antibiotics|dosage))\b/i,
+    /\bpatient(?:'s)?\s+(?:presents with|symptoms|history|chart|vitals|medication|clinical|admitted|intake|in the clinic|in hospital)\b/i,
     /\b(?:write (?:a|an)?(?:\s+\w+)?\s*(?:poem|story|haiku|essay|song|dialogue|letter|email))\b/i,
     /\b(?:grammar|proofread|correct the grammar|spelling|rephrase|paraphrase)\b/i,
     /\b(?:narrative|protagonist|storyline|allegory|metaphor)\b/i,
@@ -322,7 +340,7 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
   ];
 
   for (const pattern of generalFastPatterns) {
-    if (pattern.test(fullText)) {
+    if (pattern.test(scanText)) {
       return {
         isFastPath: true,
         role: 'general_fast',
@@ -333,9 +351,8 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
     }
   }
 
-  // Open-ended trivia without multiple choice options
-  const hasOptions = /\b(?:options|selections|choices|alternatives):\s*\n?\s*[a-d]\./i.test(fullText) || /\n\s*[a-d]\.\s+\S+/i.test(fullText);
-  if (!hasOptions && /\b(?:who (?:was|wrote|directed|composed|invented|discovered)|what is the (?:capital of|[\w-]+\s+capital)|which country|what city)\b/i.test(fullText)) {
+  // Open-ended trivia (Who directed X?, What is the capital of Y?)
+  if (/\b(?:who (?:was|wrote|directed|composed|invented|discovered)|what is the (?:capital of|[\w-]+\s+capital)|which country|what city)\b/i.test(scanText)) {
     return {
       isFastPath: true,
       role: 'general_fast',
@@ -347,15 +364,16 @@ export function classifyPreRoute(messages: Message[] | string, options?: Classif
 
   // 6. Explicit STEM / Math / Logic / Science
   const isExplicitStem = 
-    /(?:\\frac|\\sum|\\sqrt|\\int|\\times|\\pm|equation|theorem|polynomial|integral|derivative|matrix|vector space|logarithm|physics|chemistry|biology|astronomy|thermodynamics|quantum|velocity|voltage|electric current|electrical resistance|resistor|molecule|atom|gravitat\w*|gravity|black hole|calculus|algebra|geometry|trigonometry|logarithmic|exponential|mitochondri\w*|phosphorylation|atp synthesis|photosynthesis|eukaryot\w*|orbital|fluid flow|navier-stokes|stefan-boltzmann|heisenberg|half-life|carbon-14|linear equation|system of (?:linear )?equations|nitrogen cycle|phosphorus cycle|fungi|self-attention|freezing point|boiling point)\b/i.test(fullText) ||
-    /\b(?:acceleration\s+(?:due to gravity|vector|formula|down the (?:plane|incline)|of the (?:object|particle|block|mass|car))|angular acceleration|centripetal acceleration|m\/s\^?2|rate of acceleration|constant acceleration)\b/i.test(fullText) ||
-    /\bkinetic energy\b[\s\S]{0,50}\b(?:joules|kg|m\/s|velocity|mass|formula|calculate|object|particle|motion|potential energy|conservation of energy)\b/i.test(fullText) ||
-    /\b(?:thermodynamic entropy|entropy of the system|entropy change|shannon entropy|entropy and enthalpy|entropy increases|second law of thermodynamics)\b/i.test(fullText) ||
-    /\bentropy\b[\s\S]{0,40}\b(?:temperature|joules|second law|thermodynamics|boltzmann|state function|reversib)\b/i.test(fullText) ||
-    /\b(?:calculate|determine|find)\s+(?:the\s+)?(?:derivative|integral|eigenvalue|limit|probability|velocity|acceleration|kinetic energy|net force|gravitational force|voltage|work|entropy|half-life|concentration|molarity|percentage|hypotenuse|root|standard deviation|variance)\b/i.test(fullText) ||
-    /\b(?:utilitarianism|deontolog|epistemolog|syllogism|deductive logic|inductive logic|probability|newtons|(?:net|gravitational|centripetal)\s+force|(?:atomic|rest|molar)\s+mass|speed of sound|blackbody|dark energy|cosmological constant|mitosis|meiosis|dna|crispr)\b/i.test(fullText) ||
-    /\b\d+\s*[+\-*/^=]\s*\d+\b/.test(fullText) ||
-    hasOptions;
+    /(?:\\frac|\\sum|\\sqrt|\\int|\\times|\\pm|equation|theorem|polynomial|integral|derivative|matrix|vector space|logarithm|physics|chemistry|biology|astronomy|thermodynamics|quantum|velocity|voltage|electric current|electrical resistance|resistor|molecule|atom|gravitat\w*|gravity|black hole|calculus|algebra|geometry|trigonometry|logarithmic|exponential|mitochondri\w*|phosphorylation|atp synthesis|photosynthesis|eukaryot\w*|orbital|fluid flow|navier-stokes|stefan-boltzmann|heisenberg|half-life|carbon-14|linear equation|system of (?:linear )?equations|nitrogen cycle|phosphorus cycle|fungi|self-attention|freezing point|boiling point)\b/i.test(scanText) ||
+    /\b(?:acceleration\s+(?:due to gravity|vector|formula|down the (?:plane|incline)|of the (?:object|particle|block|mass|car))|angular acceleration|centripetal acceleration|m\/s\^?2|rate of acceleration|constant acceleration)\b/i.test(scanText) ||
+    /\bkinetic energy\b[\s\S]{0,50}\b(?:joules|kg|m\/s|velocity|mass|formula|calculate|object|particle|motion|potential energy|conservation of energy)\b/i.test(scanText) ||
+    /\b(?:thermodynamic entropy|entropy of the system|entropy change|shannon entropy|entropy and enthalpy|entropy increases|second law of thermodynamics)\b/i.test(scanText) ||
+    /\bentropy\b[\s\S]{0,40}\b(?:temperature|joules|second law|thermodynamics|boltzmann|state function|reversib)\b/i.test(scanText) ||
+    /\b(?:calculate|determine|find)\s+(?:the\s+)?(?:derivative|integral|eigenvalue|limit|probability|velocity|acceleration|kinetic energy|net force|gravitational force|voltage|work|entropy|half-life|concentration|molarity|percentage|hypotenuse|root|standard deviation|variance)\b/i.test(scanText) ||
+    /\b(?:(?:joint|conditional|posterior|prior|binomial|poisson|marginal)\s+probability|probability\s+(?:distribution|density|mass\s+function|of\s+(?:getting|rolling|drawing|event|heads|tails)))\b/i.test(scanText) ||
+    /\b(?:dna\s+(?:sequence|sequencing|replication|polymerase|transcription|methylation|mutation|strand|helix|double\s+helix|break[s]?|cleavage|damage|repair|ligase)|recombinant\s+dna|mitochondrial\s+dna)\b/i.test(scanText) ||
+    /\b(?:utilitarianism|deontolog|epistemolog|syllogism|deductive logic|inductive logic|newtons|(?:net|gravitational|centripetal)\s+force|(?:atomic|rest|molar)\s+mass|speed of sound|blackbody|dark energy|cosmological constant|mitosis|meiosis|crispr)\b/i.test(scanText) ||
+    /\b\d+\s*[+\-*/^=]\s*\d+\b/.test(scanText);
 
   if (isExplicitStem) {
     return {
