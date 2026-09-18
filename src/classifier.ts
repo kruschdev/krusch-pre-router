@@ -154,8 +154,8 @@ export function evaluateComplexityScore(messages: Message[] | string, options?: 
 }
 
 /**
- * A fast heuristic classifier to predict if a prompt is "simple" or "complex".
- * Evaluates message length, complex cognitive verbs, and structural payload markers
+ * A fast syntactic heuristic to estimate if a prompt is "simple" or "complex".
+ * Evaluates message length, analytical indicator verbs, and structural payload markers
  * by testing whether evaluateComplexityScore meets or exceeds the complexity threshold (default: 0.5).
  */
 export function isComplexPrompt(
@@ -167,11 +167,11 @@ export function isComplexPrompt(
 }
 
 /**
- * Deterministic Stage-0 Pre-Router Gate.
- * Evaluates in <15 microseconds whether an incoming prompt has a deterministic
- * structural or domain footprint (code, SQL, math, chess, closed-world transform)
- * suitable for immediate fast-path dispatch, or whether it should be delegated
- * to an L2 neural/embedding router or frontier model.
+ * Deterministic Stage-0 Syntactic Gate.
+ * Evaluates in microsecond CPU time (<15µs) whether an incoming prompt has an unambiguous
+ * structural syntax footprint (code fences, SQL, LaTeX equations, chess FEN, stack traces)
+ * suitable for immediate fast-path dispatch, or whether it lacks deterministic markers and should
+ * delegate to an L2 neural/embedding router or frontier model.
  */
 export function classifyPreRoute<TRole extends string = string>(messages: Message[] | string, options?: ClassifierOptions<TRole>): PreRouteResult<TRole> {
   let fullText = Array.isArray(messages) 

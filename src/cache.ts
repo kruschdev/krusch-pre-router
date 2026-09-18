@@ -14,8 +14,9 @@ export interface CacheOptions {
 }
 
 /**
- * High-performance, zero-dependency in-memory LRU cache for prompt classifications.
- * Provides < 1 microsecond O(1) lookups for identical, whitespace-normalized prompts.
+ * High-performance, zero-dependency in-memory LRU memoization table for prompt classifications.
+ * Provides sub-microsecond O(1) lookups for identical, whitespace-normalized prompts.
+ * Note: This is an exact-match memoizer with defensive copies, NOT a semantic vector cache.
  */
 export class PreRouteCache<TRole extends string = SpecialistRole> {
   private readonly maxSize: number;

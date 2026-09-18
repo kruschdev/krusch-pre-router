@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Deterministic Regex Pre-Router & In-Memory Memoization Table for LLM Swarms.</strong><br>
+  <strong>Deterministic Stage-0 Syntactic Gate & Exact-Match LRU Memoization Table for LLM Swarms.</strong><br>
   <span>Zero dependencies. &lt;20KB bundle size. Microsecond CPU classification & LRU memoization. $0.00 routing tax.</span>
 </p>
 
@@ -17,16 +17,16 @@
 
 ---
 
-## ⚡ Architecture: Stage-0 Pre-Router Gate
+## ⚡ Architecture: Stage-0 Syntactic Gate
 
-### **"Don't spend a model call just to pick a model. Check Stage 0 first."**
+### **"Don't spend an embedding or model call just to pick a model. Check Stage 0 first."**
 
-In multi-model AI swarms, querying an embedding model or LLM just to decide whether an obvious Python function, SQL query, LaTeX equation, or JSON transform belongs to a code or math specialist introduces unnecessary latency and cost:
-* **The Neural Routing Tax**: Neural routers (e.g. RouteLLM, NotDiamond) typically introduce **15ms–50ms of vectorization and MLP overhead**, while LLM-as-a-router introduces **300ms–1,200ms TTFT** plus prompt token billing.
-* **The Stage-0 Architecture**: `krusch-pre-router` provides a zero-dependency **deterministic regex classifier + optional in-memory LRU memo table**:
-  1. **LRU Memo Table**: O(1) in-memory lookup (~1.5µs p50) with defensive cloning for repeated prompts, identical evaluations, and agent retry loops (exact string keys after whitespace normalization).
-  2. **Deterministic Regex Stack**: Cold CPU keyword and syntax analysis (~6.5µs p50) for unseen prompts.
-  3. **Explicit Miss Delegation**: Unstructured conversational chat cleanly passes through (`isFastPath: false`, `role: undefined`) to your Stage-1 neural router or frontier model.
+In multi-model AI stacks, querying an embedding model or LLM judge just to decide whether an obvious Python function, SQL query, LaTeX equation, or JSON dump belongs to a code or math specialist introduces unnecessary latency and cost:
+* **The Neural Routing Tax**: Neural routers (e.g., RouteLLM, NotDiamond) typically add **15ms–50ms of vectorization and MLP overhead**, while LLM-as-a-router introduces **300ms–1,200ms TTFT** plus prompt token billing.
+* **The Stage-0 Solution**: `krusch-pre-router` acts as an in-process **syntactic front-gate**, not a semantic router. It does not compute embeddings or evaluate vector similarity; it intercepts unambiguous structural syntax on the CPU in sub-10 microseconds:
+  1. **Exact-Match LRU Memo Table**: O(1) in-memory lookup (~1.5µs p50) with defensive cloning for repeated prompts, identical evaluations, and agent retry loops (exact string keys after whitespace normalization).
+  2. **Deterministic Regex Stack**: Cold CPU keyword and syntax analysis (~6.5µs p50) for unseen prompts with hard syntactic anchors (code fences, SQL keywords, LaTeX equations, chess FEN, stack traces).
+  3. **Explicit Miss Delegation**: Prompts lacking deterministic structural signatures cleanly pass through (`isFastPath: false`, `role: undefined`) to your Stage-1 neural router or frontier model.
 
 ```
                   ┌───────────────────────────────┐
@@ -35,9 +35,9 @@ In multi-model AI swarms, querying an embedding model or LLM just to decide whet
                                   │
                                   ▼
       ┌────────────────────────────────────────────────────────┐
-      │  Stage 0: Pre-Router Gate (krusch-pre-router)          │
+      │  Stage 0: Syntactic Gate (krusch-pre-router)           │
       │  LRU Memo Table Hit:  ~ 1.5 µs (Map get + clone)       │
-      │  Cold Regex Stack:    ~ 6.5 µs (CPU string analysis)   │
+      │  Cold Regex Stack:    ~ 6.5 µs (CPU syntax scan)       │
       │  Cost:                $0.00 (0 tokens, 0 network hops) │
       └───────┬────────────────────────────────────────┬───────┘
               │                                        │
@@ -62,8 +62,12 @@ In multi-model AI swarms, querying an embedding model or LLM just to decide whet
 
 ## 📦 Installation
 
-Install directly from GitHub:
+From npm:
+```bash
+npm install krusch-pre-router
+```
 
+Or directly from GitHub:
 ```bash
 npm install github:kruschdev/krusch-pre-router
 ```
@@ -81,7 +85,11 @@ npm install ../path/to/krusch-pre-router
 
 ### 1. Stateful Pre-Router with In-Memory LRU Memo Table (Recommended)
 
-`createPreRouter()` wraps heuristic evaluation with an optional in-memory LRU memoization table (useful for agent retry loops and identical prompt repeats; keys are literal whitespace-normalized strings, not parameterized variable template abstractions):
+`createPreRouter()` wraps heuristic evaluation with an optional in-memory LRU memoization table (useful for agent retry loops, eval harnesses, and identical prompt repeats; keys are literal whitespace-normalized strings, not parameterized variable template abstractions):
+
+> [!NOTE]
+> **Exact-Match String Memoization vs. Semantic Caching**:
+> `PreRouteCache` is a high-performance **exact-match string memoizer** (with whitespace normalization, message role preservation, and defensive copies), **NOT a semantic vector cache**. It is designed to deflect identical prompt repeats, eval benchmark loops, and agent retry storms in ~1.5µs without network hops. Paraphrases, parameterized prompt templates with changing numbers/variables, and reworded queries will miss the cache and proceed to cold regex evaluation or L2 delegation.
 
 ```javascript
 import { createPreRouter } from 'krusch-pre-router';
@@ -170,10 +178,21 @@ Benchmarked on **Intel Core i7-5820K (12 cores @ 3.30GHz), 32GB RAM, Linux x86_6
 
 `krusch-pre-router` is an **opinionated Stage-0 syntactic gate**, not a semantic intelligence layer.
 
+### ⚖️ Fit vs. Alternatives Matrix
+
+| Need / Capability | `krusch-pre-router` (Stage 0) | Learned / Neural Router (RouteLLM, NotDiamond) | LLM-as-a-Judge (Frontier Gate) |
+|---|---|---|---|
+| **Skip embeddings on fenced code, SQL, LaTeX, stack traces** | **Strong fit** (Sub-10µs CPU, $0.00) | Overkill (computes embeddings unnecessarily) | Prohibitive latency/cost |
+| **Exact prompt memoization (eval loops, retries, agent swarms)** | **Strong fit** (In-memory LRU, ~1.5µs) | Requires external cache setup | Prohibitive latency/cost |
+| **Cheap miss delegation into L2 / Neural Router** | **Strong fit** (Clean miss contract: `role: undefined`) | N/A (Is the L2 layer) | N/A |
+| **Nuanced natural language & conversational intent** | **No** (Clean miss delegation to L2) | **Strong fit** (Learned embedding spaces) | Very strong fit |
+| **Multi-tenant durable persistent cache** | **No** (Process-local Map; use Redis/KV) | Requires external database | Requires external database |
+| **Intent / safety / policy / jailbreak routing** | **No** (Use dedicated guardrails) | Secondary fit | Primary fit |
+
 ### ✅ When to Use
-* **In front of neural routers**: Place it directly before RouteLLM, NotDiamond, or an LLM-as-a-router to bypass 15ms–50ms embedding calculations on syntactically obvious prompts (code fences, SQL, LaTeX formulas, chess FEN, language translations).
-* **Agent retry loops & evaluation swarms**: Use `createPreRouter()` to cache repeated prompts and benchmark templates at ~1.5 µs latency with zero network overhead.
-* **Living domain configuration**: Extend with `customSpecialistRules` for your proprietary tags, ticket schemas, or internal API calls, and use `harvest:ood` to turn production misroutes into regression tests.
+* **In front of neural routers**: Place it directly before RouteLLM, NotDiamond, or an LLM-as-a-router to bypass 15ms–50ms embedding calculations on syntactically obvious prompts (code fences, SQL, LaTeX formulas, chess FEN, structured data transforms).
+* **Agent retry loops & evaluation swarms**: Use `createPreRouter()` to memoize repeated prompts and benchmark templates at ~1.5 µs latency with zero network overhead.
+* **Living domain configuration**: Extend with `customSpecialistRules` for your proprietary tags, ticket schemas, or internal API calls, and use `harvest:ood` to turn production misroutes into permanent regression tests.
 
 ### ❌ When NOT to Use
 * **As a standalone semantic router**: Deterministic heuristics cannot infer nuanced communicative intent. Prompts without syntax footprints must miss to an L2 neural or frontier model.
@@ -182,20 +201,39 @@ Benchmarked on **Intel Core i7-5820K (12 cores @ 3.30GHz), 32GB RAM, Linux x86_6
 
 ---
 
-## 🧪 Evaluation & Regression Hygiene
+## 🔍 Syntactic Anchors vs. Heuristic Signals (Managing Heuristic Drift)
 
-The test suite validates performance across both in-domain specialist traffic and out-of-distribution adversarial traffic:
+When deploying `krusch-pre-router`, understand the difference between the two classes of rules:
+
+1. **Deterministic Syntactic Anchors (Zero Drift, High Precision)**:
+   - Fenced code blocks (```` ```python ````, ```` ```json ````), code imports (`from x import y`, `const fs = require`), and stack traces.
+   - SQL queries (`SELECT ... FROM`, `CREATE TABLE`, `LEFT JOIN`).
+   - LaTeX mathematical equations (`\frac{...}{...}`, `\sqrt{...}`, `\int`).
+   - Chess notation and board positions (FEN strings, PGN moves `1. e4 e5`).
+   *These structures possess formal grammatical rules and do not drift with conversational slang.*
+
+2. **Heuristic & Keyword Signals (Subject to Drift)**:
+   - Natural language translation, dictionary lookups, unit conversions, and factual trivia (`general_fast`).
+   - While effective for high-throughput multi-agent swarms, natural language heuristics carry higher risk of false positives on colloquial phrasing.
+   - **Production Hardening**: If your stack requires strict conservatism, natural language fast-paths can be overridden or disabled via `customSpecialistRules` to only allow strict syntactic structures through Stage 0, delegating all conversational prompts to L2.
+
+---
+
+## 🧪 Test Harness & OOD Boundary Validation
+
+The automated test suite verifies syntactic rule isolation, ReDoS bounds, and priority precedence across calibrated fixtures:
 
 ```bash
 npm test
 ```
 
-* **Holdout Specialist Dataset (100 prompts)**: Author-curated regression suite across all 6 target domains (Code, STEM, Deep Reasoning, Reading Comprehension, Chess/Spatial, General Fast). Target domain accuracy: **100% (100/100)**.
-* **Out-of-Distribution (OOD) Adversarial Dataset (115 prompts)**: Regression suite evaluating conversational chat, subjective advice, and colloquial keyword traps (e.g. conversational "probability of rain", corporate "DNA", plain prose in backticks, non-STEM multiple-choice questions, and metaphorical "symptoms of burnout").
-  * **Clean L2 Delegation**: **100.0% (115/115)**
-  * **Wrong-Specialist Rate (False-Positive Rate)**: **0.0% (0/115)**
+* **Holdout Specialist Harness (100 prompts)**: Fixture suite across all 6 default archetypes (Code, STEM, Deep Reasoning, Reading Comprehension, Chess/Spatial, General Fast). Regression pass rate: **100% (100/100)**.
+* **Out-of-Distribution (OOD) Trap Harness (122 prompts)**: Fixture suite evaluating conversational chat, subjective advice, and colloquial keyword traps (e.g., conversational "probability of rain", corporate "DNA", plain prose in backticks, non-STEM multiple-choice questions, and metaphorical "symptoms of burnout").
+  * **Clean L2 Pass-Through**: **100.0% (122/122)**
+  * **False-Positive Gate Traps**: **0.0% (0/122)**
 
-> **Important Note on Accuracy Numbers**: 100% holdout accuracy and 0% FPR reflect regression suite hygiene against author test fixtures, not an external, independent benchmark. A regex classifier tuned to fixed fixtures will only stay accurate if maintained as a **living configuration**. Run `npm run harvest:ood` against your actual production logs to capture false positives and continuously harden your rules.
+> [!NOTE]
+> **Understanding Metric Scope & Language Drift**: The 100/100 holdout pass rate and 0/122 OOD trap score represent **test harness regression coverage against authored fixtures**, not an external, independent open-world natural language benchmark. Any static heuristic classifier is inherently subject to language drift on unstructured conversational input. For production stacks, the **OOD harvest loop (`npm run harvest:ood`)** is the critical mechanism: it ingests real-world misroutes and logs, transforming false positives into permanent regression fixtures.
 
 ---
 
@@ -366,9 +404,10 @@ Evaluation follows a deterministic, priority-ordered chain:
 
 ### 📐 Complexity Scoring vs. Domain Fast-Pathing
 
-`evaluateComplexityScore` (and `isComplexPrompt`) measures **cognitive workload and prompt size** (token length, analytical verbs, nested XML/JSON data structures), which is orthogonal to **deterministic domain specialization**:
-* A prompt can be recognized as code (`role: 'code'`) while simultaneously exhibiting high complexity (`complexityScore: 0.85`, `isComplexPrompt: true`).
-* In an agent swarm, high complexity on a fast-pathed role signals that the task should be dispatched to a **flagship specialist** (e.g., Claude 3.7 Sonnet or Qwen-2.5-Coder-32B) rather than a lightweight coding model.
+`evaluateComplexityScore` (and `isComplexPrompt`) is a **coarse, lightweight syntactic heuristic** (evaluating prompt character length, punctuation density, analytical verbs, and nested XML/JSON payload markers), **not a learned cognitive complexity model**:
+* It returns a continuous `[0.0, 1.0]` indicator designed as a low-overhead hedge signal for swarm orchestration.
+* A prompt can be recognized as code (`role: 'code'`) while simultaneously exhibiting high structural complexity (`complexityScore: 0.85`, `isComplexPrompt: true`).
+* In an agent swarm, high structural complexity on a fast-pathed role signals that the task should be dispatched to a **flagship specialist** (e.g., Claude 3.7 Sonnet or Qwen-2.5-Coder-32B) rather than a lightweight coding model.
 
 ---
 
