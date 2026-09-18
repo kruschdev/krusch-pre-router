@@ -4,13 +4,13 @@ export interface Message {
 }
 
 export type SpecialistRole = 
-  | 'general_fast'     // google/gemini-3.1-flash-lite (translation, geo, social, ethics, medicine, narrative)
-  | 'factual_stem'     // deepseek/deepseek-v4-flash (factual knowledge, science, arithmetic, STEM)
-  | 'code'             // Qwen/Qwen3-Coder-Next (code generation, syntax, functions)
-  | 'reasoning_fast'   // Qwen/Qwen3-Coder-Next (logic puzzles, execution, algorithmic reasoning)
-  | 'reasoning_deep'   // deepseek/deepseek-v4-pro (financial statements, balance sheets, deep reasoning)
-  | 'games_spatial'    // deepseek/deepseek-v4-flash (chess, FEN/PGN, board positions)
-  | 'comprehension_rc';// qwen/qwen3-235b-a22b-2507 (paragraph answer evaluation, reading comprehension)
+  | 'general_fast'     // Fast generalist (translation, geography, open-ended trivia, narrative)
+  | 'factual_stem'     // Factual & STEM (scientific knowledge, arithmetic, formal mathematics)
+  | 'code'             // Code specialist (code generation, syntax analysis, debugging, refactoring)
+  | 'reasoning_fast'   // Fast algorithmic reasoning (logic puzzles, deterministic execution)
+  | 'reasoning_deep'   // Deep analytical reasoning (financial filings, formal proofs, economics)
+  | 'games_spatial'    // Spatial & discrete state engines (chess, board games, FEN/PGN evaluation)
+  | 'comprehension_rc';// Grounded reading comprehension (passage analysis, document Q&A)
 
 export interface CustomSpecialistRule {
   role: SpecialistRole;

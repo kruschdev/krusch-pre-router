@@ -24,7 +24,7 @@
 In multi-model AI swarms, querying an embedding model or LLM just to decide whether an obvious Python function, SQL query, LaTeX equation, or JSON transform belongs to a code or math specialist introduces unnecessary latency and cost:
 * **The Neural Routing Tax**: Neural routers (e.g. RouteLLM, NotDiamond) typically introduce **15ms–50ms of vectorization and MLP overhead**, while LLM-as-a-router introduces **300ms–1,200ms TTFT** plus prompt token billing.
 * **The Stage-0 Architecture**: `krusch-pre-router` provides a zero-dependency **deterministic regex classifier + optional in-memory LRU memo table**:
-  1. **LRU Memo Table**: O(1) in-memory lookup (~1.5µs p50) with defensive cloning for repeated prompts, evaluation templates, and agent retry loops.
+  1. **LRU Memo Table**: O(1) in-memory lookup (~1.5µs p50) with defensive cloning for repeated prompts, identical evaluations, and agent retry loops (exact string keys after whitespace normalization).
   2. **Deterministic Regex Stack**: Cold CPU keyword and syntax analysis (~6.5µs p50) for unseen prompts.
   3. **Explicit Miss Delegation**: Unstructured conversational chat cleanly passes through (`isFastPath: false`, `role: undefined`) to your Stage-1 neural router or frontier model.
 
@@ -81,7 +81,7 @@ npm install ../path/to/krusch-pre-router
 
 ### 1. Stateful Pre-Router with In-Memory LRU Memo Table (Recommended)
 
-`createPreRouter()` wraps heuristic evaluation with an optional in-memory LRU memoization table (useful for agent retry loops and repeated templates):
+`createPreRouter()` wraps heuristic evaluation with an optional in-memory LRU memoization table (useful for agent retry loops and identical prompt repeats; keys are literal whitespace-normalized strings, not parameterized variable template abstractions):
 
 ```javascript
 import { createPreRouter } from 'krusch-pre-router';
@@ -301,6 +301,31 @@ import { detectKnowledgeBoundary } from 'krusch-pre-router';
 detectKnowledgeBoundary("Convert 75 F to C"); // 'closed'
 detectKnowledgeBoundary("What are the ethical dilemmas of AI?"); // 'open'
 ```
+
+---
+
+### ⛓️ Rule Precedence & Priority Ordering
+
+Evaluation follows a deterministic, priority-ordered chain:
+1. **Custom Specialist Rules** (`options.customSpecialistRules`) — *Always evaluate first*
+2. **Grounded Reading Comprehension** (`role: 'comprehension_rc'`)
+3. **Chess & Spatial Games** (`role: 'games_spatial'`)
+4. **Code Generation & SQL** (`role: 'code'`)
+5. **Deep Financial Reasoning & Proofs** (`role: 'reasoning_deep'`)
+6. **General Fast** (`role: 'general_fast'`)
+7. **Explicit STEM & Math** (`role: 'factual_stem'`)
+8. **Closed-World Transforms** (`role: 'general_fast'`)
+9. **Unstructured Miss** (`isFastPath: false`, `role: undefined`)
+
+> **Multi-Domain Precedence**: If a prompt spans multiple domains (e.g. *"Based on the provided passage, write a SQL query to extract users"*), earlier rules take precedence (`comprehension_rc` precedes `code`). To enforce custom domain priority, define rules in `customSpecialistRules`.
+
+---
+
+### 📐 Complexity Scoring vs. Domain Fast-Pathing
+
+`evaluateComplexityScore` (and `isComplexPrompt`) measures **cognitive workload and prompt size** (token length, analytical verbs, nested XML/JSON data structures), which is orthogonal to **deterministic domain specialization**:
+* A prompt can be recognized as code (`role: 'code'`) while simultaneously exhibiting high complexity (`complexityScore: 0.85`, `isComplexPrompt: true`).
+* In an agent swarm, high complexity on a fast-pathed role signals that the task should be dispatched to a **flagship specialist** (e.g., Claude 3.7 Sonnet or Qwen-2.5-Coder-32B) rather than a lightweight coding model.
 
 ---
 
