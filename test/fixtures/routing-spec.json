@@ -1,106 +1,234 @@
 [
   {
     "domain": "comprehension_rc",
-    "query": "Based on the provided passage, what was the primary cause of the treaty failure?"
+    "query": "Based on the provided passage, what was the primary cause of the treaty failure?",
+    "reason": "comprehension",
+    "precedenceRank": 20,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "comprehension_rc",
-    "query": "According to the following article, how did the researchers measure solar irradiance?"
+    "query": "According to the following article, how did the researchers measure solar irradiance?",
+    "reason": "comprehension",
+    "precedenceRank": 20,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "comprehension_rc",
-    "query": "In the historical account above, what does the author imply about the diplomatic delegation?"
+    "query": "In the historical account above, what does the author imply about the diplomatic delegation?",
+    "reason": "comprehension",
+    "precedenceRank": 20,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "comprehension_rc",
-    "query": "Summarize the text provided above in three concise bullet points."
+    "query": "Summarize the text provided above in three concise bullet points.",
+    "reason": "comprehension",
+    "precedenceRank": 20,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "reasoning_deep",
-    "query": "Calculate the diluted EPS and operating margin from this 10-K SEC filing."
+    "query": "Calculate the diluted EPS and operating margin from this 10-K SEC filing.",
+    "reason": "deep_reasoning",
+    "precedenceRank": 26,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "reasoning_deep",
-    "query": "Analyze the balance sheet cash flows and determine if there is a debt covenant breach."
+    "query": "Analyze the balance sheet cash flows and determine if there is a debt covenant breach.",
+    "reason": "deep_reasoning",
+    "precedenceRank": 26,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "reasoning_deep",
-    "query": "What was the company's net income, EBITDA, and capital expenditure for fiscal year 2025?"
+    "query": "What was the company's net income, EBITDA, and capital expenditure for fiscal year 2025?",
+    "reason": "deep_reasoning",
+    "precedenceRank": 26,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "reasoning_deep",
-    "query": "Provide a formal mathematical proof showing that the square root of 2 is irrational."
+    "query": "Provide a formal mathematical proof showing that the square root of 2 is irrational.",
+    "reason": "deep_reasoning",
+    "precedenceRank": 26,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "games_spatial",
-    "query": "Evaluate this chess move: 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6."
+    "query": "Evaluate this chess move: 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6.",
+    "reason": "chess_move",
+    "precedenceRank": 25,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "games_spatial",
-    "query": "Given the board position with FEN rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR, what is the best reply?"
+    "query": "Given the board position with FEN rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR, what is the best reply?",
+    "reason": "fen",
+    "precedenceRank": 25,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "games_spatial",
-    "query": "Is Black in checkmate or stalemate in this endgame position?"
+    "query": "Is Black in checkmate or stalemate in this endgame position?",
+    "reason": "chess_move",
+    "precedenceRank": 25,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "games_spatial",
-    "query": "What are the rules for kingside castling when the f1 bishop has moved?"
+    "query": "What are the rules for kingside castling when the f1 bishop has moved?",
+    "reason": "chess_move",
+    "precedenceRank": 25,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "code",
-    "query": "Write an algorithm in TypeScript to detect cycles in a directed graph."
+    "query": "Write an algorithm in TypeScript to detect cycles in a directed graph.",
+    "reason": "code_syntax",
+    "precedenceRank": 23,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "code",
-    "query": "```python\ndef merge_sort(arr):\n    pass\n```\nImplement the merge step in python."
+    "query": "```python\ndef merge_sort(arr):\n    pass\n```\nImplement the merge step in python.",
+    "reason": "fence",
+    "precedenceRank": 21,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "code",
-    "query": "How do I implement an LRU cache with O(1) get and put in Rust?"
+    "query": "How do I implement an LRU cache with O(1) get and put in Rust?",
+    "reason": "code_syntax",
+    "precedenceRank": 23,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "code",
-    "query": "Fix this React custom hook: function useDebounce(value, delay) { ... }"
+    "query": "Fix this React custom hook: function useDebounce(value, delay) { ... }",
+    "reason": "code_syntax",
+    "precedenceRank": 23,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "code",
-    "query": "Write a SQL query to find all users who registered in the last 30 days and made at least two purchases."
+    "query": "Write a SQL query to find all users who registered in the last 30 days and made at least two purchases.",
+    "reason": "code_syntax",
+    "precedenceRank": 23,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "general_fast",
-    "query": "Translate this sentence into French: The weather in Paris is pleasant today."
+    "query": "Translate this sentence into French: The weather in Paris is pleasant today.",
+    "reason": "keyword",
+    "precedenceRank": 40,
+    "preset": "anchors+keywords",
+    "isFastPath": true
   },
   {
     "domain": "general_fast",
-    "query": "How do you say thank you very much in Japanese?"
+    "query": "How do you say thank you very much in Japanese?",
+    "reason": "keyword",
+    "precedenceRank": 40,
+    "preset": "anchors+keywords",
+    "isFastPath": true
   },
   {
     "domain": "general_fast",
-    "query": "Please proofread and correct the grammar of this introductory email: 'Dear Mr Smith, I hope this email finds you well.'"
+    "query": "Please proofread and correct the grammar of this introductory email: 'Dear Mr Smith, I hope this email finds you well.'",
+    "reason": "keyword",
+    "precedenceRank": 41,
+    "preset": "anchors+keywords",
+    "isFastPath": true
   },
   {
     "domain": "general_fast",
-    "query": "What is the capital of Australia, and what is its elevation?"
+    "query": "What is the capital of Australia, and what is its elevation?",
+    "reason": "keyword",
+    "precedenceRank": 41,
+    "preset": "anchors+keywords",
+    "isFastPath": true
   },
   {
     "domain": "general_fast",
-    "query": "Who directed the 1982 science fiction film Blade Runner?"
+    "query": "Who directed the 1982 science fiction film Blade Runner?",
+    "reason": "keyword",
+    "precedenceRank": 41,
+    "preset": "anchors+keywords",
+    "isFastPath": true
   },
   {
     "domain": "factual_stem",
-    "query": "What is the kinetic energy of a 2 kg object moving at 5 m/s?"
+    "query": "What is the kinetic energy of a 2 kg object moving at 5 m/s?",
+    "reason": "code_syntax",
+    "precedenceRank": 28,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "factual_stem",
-    "query": "Options:\nA. Mitochondria\nB. Ribosome\nC. Nucleus\nD. Endoplasmic reticulum\nWhich organelle is responsible for ATP synthesis?"
+    "query": "Options:\nA. Mitochondria\nB. Ribosome\nC. Nucleus\nD. Endoplasmic reticulum\nWhich organelle is responsible for ATP synthesis?",
+    "reason": "code_syntax",
+    "precedenceRank": 28,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "factual_stem",
-    "query": "Explain the difference between utilitarianism and deontological moral philosophy."
+    "query": "Explain the difference between utilitarianism and deontological moral philosophy.",
+    "reason": "code_syntax",
+    "precedenceRank": 28,
+    "preset": "anchors-only",
+    "isFastPath": true
   },
   {
     "domain": "factual_stem",
-    "query": "What is the half-life of Carbon-14 and how is it used in radiocarbon dating?"
+    "query": "What is the half-life of Carbon-14 and how is it used in radiocarbon dating?",
+    "reason": "code_syntax",
+    "precedenceRank": 28,
+    "preset": "anchors-only",
+    "isFastPath": true
+  },
+  {
+    "domain": null,
+    "query": "```python\n# Clinical protocol: calculate pediatric dosage of vancomycin\n```",
+    "reason": "deny",
+    "precedenceRank": 0,
+    "preset": "anchors-only",
+    "isFastPath": false
+  },
+  {
+    "domain": null,
+    "query": "A 52-year-old patient presents with sudden severe crushing chest pain radiating to the left arm.",
+    "reason": "deny",
+    "precedenceRank": 0,
+    "preset": "anchors-only",
+    "isFastPath": false
+  },
+  {
+    "domain": null,
+    "query": "Hey friend, can you recommend some fun weekend hobbies for unwinding?",
+    "reason": "miss",
+    "precedenceRank": 99,
+    "preset": "anchors-only",
+    "isFastPath": false
   }
 ]

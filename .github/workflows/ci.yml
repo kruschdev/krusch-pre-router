@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20.x, 22.x]
+        node-version: [18.x, 20.x, 22.x]
 
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +31,24 @@ jobs:
 
       - name: Run test suite
         run: npm test
+
+      - name: Verify CommonJS export
+        run: node -e "const { classifyPreRoute } = require('./dist/index.cjs'); const res = classifyPreRoute('SELECT * FROM users;'); if (res.role !== 'code') process.exit(1);"
+
+      - name: Verify ESM export
+        run: node -e "import('./dist/index.js').then(m => { const res = m.classifyPreRoute('SELECT * FROM users;'); if (res.role !== 'code') process.exit(1); });"
+
+      - name: Verify packaged tarball in isolated environment
+        run: |
+          npm pack
+          TARBALL=$(ls krusch-pre-router-*.tgz)
+          mkdir -p /tmp/tarball-test
+          cd /tmp/tarball-test
+          npm init -y
+          npm install "$GITHUB_WORKSPACE/$TARBALL"
+          node -e "const { classifyPreRoute } = require('krusch-pre-router'); const res = classifyPreRoute('SELECT * FROM users;'); if (res.role !== 'code') process.exit(1); console.log('✅ Isolated tarball test passed');"
+          cd "$GITHUB_WORKSPACE"
+          rm -rf /tmp/tarball-test "$TARBALL"
 
       - name: Run microsecond benchmark
         run: npm run bench
