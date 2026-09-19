@@ -1,0 +1,8 @@
+# GitHub Linguist language overrides
+# Mark test suites, benchmarks, and automation scripts as vendored/documentation
+# so GitHub correctly attributes the repository language as 100% TypeScript.
+test/** linguist-vendored=true
+scripts/** linguist-vendored=true
+benchmark/** linguist-vendored=true
+examples/** linguist-documentation=true
+dist/** linguist-vendored=true

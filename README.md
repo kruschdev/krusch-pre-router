@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>Deterministic Stage-0 Syntactic Gate & Exact-Match LRU Memoization Table for LLM Swarms.</strong><br>
-  <span>Zero dependencies. &lt;20KB bundle size. Microsecond CPU classification & LRU memoization. $0.00 routing tax.</span>
+  <strong>L1 Syntactic Pre-Filter & Exact-Match LRU Memoization Gate for Multi-Model LLM Stacks.</strong><br>
+  <span>Zero runtime dependencies. &lt;20KB bundle size. Microsecond CPU pre-filtering before neural/LLM routers. $0.00 routing tax.</span>
 </p>
 
 <p align="center">
@@ -62,14 +62,14 @@ In multi-model AI stacks, querying an embedding model or LLM judge just to decid
 
 ## 📦 Installation
 
-From npm:
-```bash
-npm install krusch-pre-router
-```
-
-Or directly from GitHub:
+Directly from GitHub (recommended for latest release):
 ```bash
 npm install github:kruschdev/krusch-pre-router
+```
+
+Or from npm (public registry):
+```bash
+npm install krusch-pre-router
 ```
 
 Or from local checkout:
