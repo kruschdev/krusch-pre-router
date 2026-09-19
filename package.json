@@ -28,6 +28,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "prepare": "npm run build",
     "pretest": "npm run build",
     "test": "node --test",
     "prebench": "npm run build",

@@ -88,7 +88,12 @@ To restore previous behavior, configure the one-line preset:
 
 ## 📦 Installation
 
-Directly from GitHub (recommended for git-pinned tags):
+From npm:
+```bash
+npm install krusch-pre-router
+```
+
+Or directly from GitHub:
 ```bash
 npm install github:kruschdev/krusch-pre-router#v1.0.0
 ```
