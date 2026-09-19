@@ -75,11 +75,15 @@ test('classifyPreRoute - Fast-Path Identification vs L2 Delegation', () => {
     assert.equal(defaultMiss.role, undefined);
     assert.equal(defaultMiss.reason, 'miss');
 
-    // Under 'all' (or legacy 'anchors+keywords') opt-in, keywords fast-path
-    const optInHit = classifyKeywords(item.query);
+    // Under 'structure+lexical+keywords' (and 'all') opt-in, keywords fast-path
+    const optInHit = classifyPreRoute(item.query, { preset: 'structure+lexical+keywords' });
     assert.equal(optInHit.isFastPath, true);
     assert.equal(optInHit.role, item.expectedRole);
     assert.equal(optInHit.reason, item.reason);
+
+    const helperHit = classifyKeywords(item.query);
+    assert.equal(helperHit.isFastPath, true);
+    assert.equal(helperHit.role, item.expectedRole);
   }
 
   const unstructuredSamples = [

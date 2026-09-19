@@ -40,11 +40,12 @@ export type PreRouteReason =
   | 'miss';
 
 export type RulePreset = 
-  | 'structure'            // Default: pure structural syntax only (fences, SQL, LaTeX, stack traces, FEN/PGN)
-  | 'structure+lexical'    // Structure + domain technical phrases & collocations
-  | 'all'                  // Full recall: structure + lexical + keywords/trivia
-  | 'anchors-only'         // Backward-compatible alias for 'structure+lexical'
-  | 'anchors+keywords';    // Backward-compatible alias for 'all'
+  | 'structure'                  // Default: pure structural syntax only (fences, SQL, LaTeX, stack traces, FEN/PGN)
+  | 'structure+lexical'          // Structure + domain technical phrases & collocations (restores anchors-only recall)
+  | 'structure+lexical+keywords' // Full recall: structure + lexical + keywords/trivia (restores keyword-era recall)
+  | 'all'                        // Alias for 'structure+lexical+keywords'
+  | 'anchors-only'               // Backward-compatible alias for 'structure+lexical'
+  | 'anchors+keywords';          // Backward-compatible alias for 'structure+lexical+keywords'
 
 export type MessageScope = 'last_user' | 'all';
 

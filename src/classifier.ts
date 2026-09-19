@@ -358,7 +358,7 @@ export function classifyPreRoute<TRole extends string = string>(
   // Layer 2: Lexical Domain Rules (Rank 30-34)
   // Active in 'structure+lexical', 'all', and legacy aliases 'anchors-only', 'anchors+keywords'
   // --------------------------------------------------------------------------
-  const includeLexical = preset === 'structure+lexical' || preset === 'anchors-only' || preset === 'all' || preset === 'anchors+keywords';
+  const includeLexical = preset === 'structure+lexical' || preset === 'structure+lexical+keywords' || preset === 'anchors-only' || preset === 'all' || preset === 'anchors+keywords';
 
   if (includeLexical) {
     // Rank 30: Grounded Reading Comprehension
@@ -492,7 +492,7 @@ export function classifyPreRoute<TRole extends string = string>(
   // Layer 3: Keyword & Heuristic Rules (Rank 40-50)
   // Active ONLY when preset is 'all' (or legacy 'anchors+keywords')
   // --------------------------------------------------------------------------
-  const includeKeywords = preset === 'all' || preset === 'anchors+keywords';
+  const includeKeywords = preset === 'structure+lexical+keywords' || preset === 'all' || preset === 'anchors+keywords';
 
   if (includeKeywords) {
     // Translation

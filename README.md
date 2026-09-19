@@ -64,25 +64,26 @@
 > [!WARNING]
 > **Breaking Default**: The default preset in `v1.0.0` is **`structure`** (ultra-conservative, raw structural syntax only). Natural language phrasings like *"Write a Python function to reverse a string"* or *"Analyze the 10-K balance sheet"* now miss cleanly to Stage-1/L2 by default to eliminate heuristic drift.
 
-To restore previous natural language domain recall or enable keyword rules, use the one-line preset option:
+To restore previous behavior, configure the one-line preset:
 
-```typescript
-// 1. Structure + Lexical Domain Phrases (finance, STEM, code phrases)
-const router = createPreRouter({ preset: 'structure+lexical' });
-
-// 2. All Rules (including translation, unit conversion, trivia keywords)
-const router = createPreRouter({ preset: 'all' });
-```
+* **Restoring `anchors-only` era behavior** (restores code/finance/STEM/RC domain phrases without trivia):
+  ```typescript
+  const router = createPreRouter({ preset: 'structure+lexical' });
+  ```
+* **Restoring early README / keyword-era behavior** (restores translations, unit conversions, and trivia keywords):
+  ```typescript
+  const router = createPreRouter({ preset: 'structure+lexical+keywords' });
+  ```
 
 ---
 
 ## 🏛️ The Three Catalog Layers
 
-| Layer | Rules Included | Drift Risk | Default Status | Examples |
+| Layer | Rules Included | Drift Risk | Preset Option | Examples |
 |---|---|---|---|---|
-| **`structure`** | Code fences, SQL statements, LaTeX macros, stack traces, FEN/PGN regex | **Zero** | **Active (Default)** | ```` ```python\ndef f(): pass\n``` ````, `SELECT * FROM tbl`, `\frac{a}{b}`, `1. e4 e5` |
-| **`lexical-domain`** | Soft phrasing: "write a function", 10-K/EBITDA, reading comprehension markers | Low | Opt-in (`structure+lexical`) | *"Based on the passage...", "Write a Go function..."* |
-| **`keywords`** | Translation, geography, trivia, closed-world transformations | Moderate | Opt-in (`all`) | *"Translate to Spanish", "Convert 50F to C"* |
+| **`structure`** | Code fences, SQL statements, LaTeX macros, stack traces, FEN/PGN regex | **Zero** | **`structure` (Default)** | ```` ```python\ndef f(): pass\n``` ````, `SELECT * FROM tbl`, `\frac{a}{b}`, `1. e4 e5` |
+| **`lexical-domain`** | Soft phrasing: "write a function", 10-K/EBITDA, reading comprehension markers | Low | **`structure+lexical`** | *"Based on the passage...", "Write a Go function..."* |
+| **`keywords`** | Translation, geography, trivia, closed-world transformations | Moderate | **`structure+lexical+keywords`** (or `all`) | *"Translate to Spanish", "Convert 50F to C"* |
 
 ---
 
