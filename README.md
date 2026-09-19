@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Deterministic Stage-0 Syntactic Gate & Exact-Match LRU Memoization Table for LLM Swarms.</strong><br>
-  <span>High-precision syntactic intercept + honest miss. Zero runtime dependencies. &lt;20KB bundle size. $0.00 routing tax.</span>
+  <span>High-precision syntactic intercept + honest miss. Zero runtime dependencies. &lt;10KB gzipped (&lt;35KB raw) bundle size. $0.00 routing tax.</span>
 </p>
 
 <p align="center">
@@ -114,9 +114,9 @@ Rule evaluation strictly follows a verified total order:
 ```
 deny (0) > custom (10) > structure (20-24) > lexical (30-34) > keywords (40-50) > miss (99)
 ```
-* **Clinical & Legal Deny List (Precedence 0)**: Queries describing acute clinical emergencies (e.g., crushing chest pain), medical pharmacology / drug dosing (e.g., vancomycin dosing, pediatric titration), or legal liability strictly trigger the top-level deny list.
+* **Precedence 0: Fast-Path Exclusion Shield (Deny List)**: High-risk queries describing acute clinical emergencies (e.g., crushing chest pain), medical pharmacology / drug dosing (e.g., vancomycin dosing, pediatric titration), or legal liability strictly trigger the top-level exclusion list.
   > [!NOTE]
-  > **Fast-Path Exclusion Shield vs. Clinical Triage**: The Deny List exists strictly to prevent hazardous queries from accidentally fast-pathing to coding or generalist specialists without seeing downstream safety guardrails. It is **not** an autonomous clinical diagnostic engine or legal compliance filter; queries with unlisted or subtle symptoms cleanly miss to Stage-1/L2 by design.
+  > **Fast-Path Exclusion Shield vs. Clinical Triage**: The Deny List exists strictly so Stage 0 cannot bypass downstream L2 safety guardrails or specialist judges by fast-pathing to code/generalist specialists. It is **not** an autonomous clinical diagnostic engine or legal compliance filter; queries with unlisted or subtle symptoms cleanly miss to Stage-1/L2 by design.
 * **Deny ∩ Fence Golden Guarantee**: Fenced code containing clinical emergency or dosing instructions (e.g. ```` ```python\n# pediatric dosage of vancomycin... ````) **strictly emits `reason: 'deny'`**, preventing code rules from bypassing safety guardrails.
 * **Code-over-Games Invariant**: Programming instructions involving chess (e.g., *"Write a Python script to parse a chess PGN"*) route to `code`, never `games_spatial`.
 
@@ -316,11 +316,11 @@ npm run bench
 
 ### Golden Invariant Suite (32/32 tests passing)
 
-100/100 and 0/126 are regression fixtures co-evolved with the rules. They are not an external generalization score. Calibrate with `npm run harvest:ood` on your logs.
+100/100 and 0/130 are regression fixtures co-evolved with the rules. They are not an external generalization score. Calibrate with `npm run harvest:ood` on your logs.
 
 * **Calibrated Fixtures (100 prompts)**: 100/100 pass rate on domain regression suite (`structure+lexical`).
 * **Conservative Preset Isolation**: Proves that default `structure` preset cleanly yields conversational and ambiguous domain phrasings to L2.
-* **OOD Adversarial Traps (126 prompts)**: Clean L2 delegation rate: **100.0% (126/126)**, Wrong-Specialist Rate (FPR): **0.0%**.
+* **OOD Adversarial Traps (130 prompts)**: Clean L2 delegation rate: **100.0% (130/130)**, Wrong-Specialist Rate (FPR): **0.0%**.
 * **Deny ∩ Fence Guarantee**: Code fences containing clinical emergencies or pharmacology dosing strictly trigger `reason: 'deny'`, overriding code rules.
 * **Message Scoping (`last_user`)**: Tool crashes and assistant stack traces in message history do not contaminate user intent classification.
 * **Cache Invalidation & Isolation**: Cache keys invalidate across `RULES_VERSION` bumps; namespaces isolate multi-tenant routers.

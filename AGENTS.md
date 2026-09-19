@@ -1,7 +1,7 @@
 # AGENTS.md — krusch-pre-router
 
 > Deterministic Stage-0 Syntactic Gate & Exact-Match LRU Memoization Table for LLM Swarms.
-> Zero runtime dependencies. <20KB bundle size. Microsecond CPU classification & LRU memoization. $0.00 routing tax.
+> Zero runtime dependencies. <10KB gzipped (<35KB raw) bundle size. Microsecond CPU classification & LRU memoization. $0.00 routing tax.
 
 ---
 

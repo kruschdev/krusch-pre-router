@@ -509,5 +509,21 @@
   {
     "category": "clinical_medicine_safety",
     "query": "Prescribe antibiotics and recommend pediatric dosage for acute otitis media."
+  },
+  {
+    "category": "adversarial_notation",
+    "query": "What is the daily schedule for the e2-e4 shipping lane in warehouse B?"
+  },
+  {
+    "category": "adversarial_notation",
+    "query": "Can you check the file path /usr/local/rnbqk/8/8/asset.png on server 3?"
+  },
+  {
+    "category": "adversarial_notation",
+    "query": "Meeting scheduled in room b1-c2 at 3pm."
+  },
+  {
+    "category": "adversarial_notation",
+    "query": "Check invoice item a1-a2 in the inventory sheet."
   }
 ]

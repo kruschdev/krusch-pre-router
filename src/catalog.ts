@@ -154,11 +154,11 @@ export const STRUCTURE_RULES: CatalogRule[] = [
     precedence: 25,
     reason: 'chess_move',
     role: 'games_spatial',
-    description: 'Deterministic PGN tags, coordinate moves, and algebraic notation',
+    description: 'Deterministic PGN tags, coordinate move sequences, and algebraic notation',
     patterns: [
       /(?:^|[\r\n])\[(?:Event|Site|Date|Round|White|Black|Result)\s+"[^"]*"\]/i,
-      /\b[a-h][1-8][-x][a-h][1-8]\b/,
-      /(?:^|[\s(])(?:1\.|[1-9]\d*\.)\s*(?:[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8]|O-O-O|O-O)/
+      /(?:^|[\s(])(?:1\.|[1-9]\d*\.)\s*(?:[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8]|[a-h][1-8][-x][a-h][1-8]|O-O-O|O-O)/,
+      /\b[a-h][1-8][-x][a-h][1-8]\s+[a-h][1-8][-x][a-h][1-8]\b/
     ]
   }
 ];
