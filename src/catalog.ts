@@ -11,6 +11,32 @@ export interface CatalogRule {
   role?: DefaultSpecialistRole;
   description: string;
   patterns: RegExp[];
+  excludePatterns?: RegExp[];
+  conjunctions?: RegExp[][];
+}
+
+/**
+ * Deterministic rule matcher supporting direct patterns, negative exclusion patterns,
+ * and conjunctions (all patterns in a group must match).
+ */
+export function matchCatalogRule(rule: CatalogRule, text: string): boolean {
+  if (rule.excludePatterns && rule.excludePatterns.length > 0) {
+    for (const exclude of rule.excludePatterns) {
+      if (exclude.test(text)) return false;
+    }
+  }
+
+  for (const pattern of rule.patterns) {
+    if (pattern.test(text)) return true;
+  }
+
+  if (rule.conjunctions && rule.conjunctions.length > 0) {
+    for (const conj of rule.conjunctions) {
+      if (conj.every(p => p.test(text))) return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -117,15 +143,31 @@ export const STRUCTURE_RULES: CatalogRule[] = [
     precedence: 24,
     reason: 'fen',
     role: 'games_spatial',
-    description: 'Deterministic chess notation, FEN positions, and discrete coordinate moves',
+    description: 'Deterministic chess notation and FEN positions',
     patterns: [
-      /(?:[rnbqkp1-8]{1,8}\/){7}[rnbqkp1-8]{1,8}/i,
+      /(?:[rnbqkp1-8]{1,8}\/){7}[rnbqkp1-8]{1,8}/i
+    ]
+  },
+  {
+    id: 'structure:chess_move',
+    category: 'structure',
+    precedence: 25,
+    reason: 'chess_move',
+    role: 'games_spatial',
+    description: 'Deterministic PGN tags, coordinate moves, and algebraic notation',
+    patterns: [
       /(?:^|[\r\n])\[(?:Event|Site|Date|Round|White|Black|Result)\s+"[^"]*"\]/i,
       /\b[a-h][1-8][-x][a-h][1-8]\b/,
       /(?:^|[\s(])(?:1\.|[1-9]\d*\.)\s*(?:[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8]|O-O-O|O-O)/
     ]
   }
 ];
+
+const CODE_LANG_PATTERN = /\b(?:typescript|javascript|python|rust|golang|c\+\+|cpp|c#|java|scala|kotlin|swift|ruby|php|react|vue|angular|svelte|next\.js|node\.js|express|fastapi|django|flask|graphql|dockerfile|github actions|kubernetes|k8s|css flexbox|css grid|tailwind|sql query|postgresql|sqlite|redis|mongodb)\b/i;
+const CODE_CONSTRUCT_PATTERN = /\b(?:error|bug|issue|exception|function|class|component|hook|query|schema|type|import|export|install|build|compile|syntax|loop|re-render|memory leak|thread|mutex|deadlock|concurrency|async|await|promise|callback|iterator|package|module|resolver|endpoint|route|layout|generic|workflow|search|sort|algorithm|engine|minimax|implementation)\b/i;
+const CHESS_TERMS_PATTERN = /\b(?:chess|checkmate|stalemate|castling|zugzwang)\b/i;
+const CHESS_TRIVIA_EXCLUSION = /\b(?:history|champion|invented|origin|medieval|olympiad winner)\b/i;
+const CHESS_KEYWORDS_EXCLUSION = /\b(?:chess|checkmate|stalemate|castling|zugzwang|sicilian|defense|opening|gambit|endgame)\b/i;
 
 /**
  * 2. Lexical Domain Rules (Precedence Rank 30-35)
@@ -166,10 +208,11 @@ export const LEXICAL_RULES: CatalogRule[] = [
       /\b(?:fix this (?:code|bug|error|issue|exception|stack trace|syntax|crash|warning))\b/i,
       /\b(?:unit test|test suite|test case|pytest|jest|vitest|mocha|cargo test)\b/i,
       /\b(?:def\s+[a-zA-Z_]\w*\s*\(|function\s+[a-zA-Z_]\w*\s*\(|const\s+[a-zA-Z_]\w*\s*=|let\s+[a-zA-Z_]\w*\s*=|var\s+[a-zA-Z_]\w*\s*=|fn\s+[a-zA-Z_]\w*\s*\(|func\s+(?:\([a-zA-Z0-9_*\s]+\)\s*)?[a-zA-Z_]\w*\s*\(|class\s+[a-zA-Z_]\w*\s*(?:extends|implements|\{|\:)|public\s+(?:static\s+)?void|import\s+.*\s+from|from\s+.*\s+import|#include\s+<|require\(['"].*['"]\)|package\s+main|console\.log\(|println!|std::|fmt\.Println)\b/,
-      /\buse[A-Z][a-zA-Z0-9_]+\b/, // React hook
-      /\b(?:typescript|javascript|python|rust|golang|c\+\+|cpp|c#|java|scala|kotlin|swift|ruby|php|react|vue|angular|svelte|next\.js|node\.js|express|fastapi|django|flask|graphql|dockerfile|github actions|kubernetes|k8s|css flexbox|css grid|tailwind|sql query|postgresql|sqlite|redis|mongodb)\b[\s\S]{0,100}\b(?:error|bug|issue|exception|function|class|component|hook|query|schema|type|import|export|install|build|compile|syntax|loop|re-render|memory leak|thread|mutex|deadlock|concurrency|async|await|promise|callback|iterator|package|module|resolver|endpoint|route|layout|generic|workflow|search|sort|algorithm|engine|minimax|implementation)\b/i,
-      /\b(?:generic type|type alias|interface\s+[a-zA-Z_]|struct\s+[a-zA-Z_]|impl\s+[a-zA-Z_]|Arc<Mutex<|RwLock<|flexbox layout|token bucket|lru cache|event emitter|pull request|git commit|git diff)\b/i,
-      /\b(?:error|bug|issue|exception|function|class|component|hook|query|schema|type|import|export|install|build|compile|syntax|loop|re-render|memory leak|thread|mutex|deadlock|concurrency|async|await|promise|callback|iterator|package|module|resolver|endpoint|route|layout|generic|workflow|search|sort|algorithm|engine|minimax|implementation)\b[\s\S]{0,100}\b(?:typescript|javascript|python|rust|golang|c\+\+|cpp|c#|java|scala|kotlin|swift|ruby|php|react|vue|angular|svelte|next\.js|node\.js|express|fastapi|django|flask|graphql|dockerfile|github actions|kubernetes|k8s|css flexbox|css grid|tailwind|sql query|postgresql|sqlite|redis|mongodb)\b/i
+      /\buse[A-Z][a-zA-Z0-9_]+\b/,
+      /\b(?:generic type|type alias|interface\s+[a-zA-Z_]|struct\s+[a-zA-Z_]|impl\s+[a-zA-Z_]|Arc<Mutex<|RwLock<|flexbox layout|token bucket|lru cache|event emitter|pull request|git commit|git diff)\b/i
+    ],
+    conjunctions: [
+      [CODE_LANG_PATTERN, CODE_CONSTRUCT_PATTERN]
     ]
   },
   {
@@ -182,8 +225,21 @@ export const LEXICAL_RULES: CatalogRule[] = [
     patterns: [
       /\b(?:en passant)\b/i,
       /\b(?:board position|legal moves|(?:pawn|knight|bishop|rook|queen|king) move)\b/i,
-      /\b(?:sudoku grid|tic-tac-toe|connect four|gomoku)\b/i,
-      /\b(?:chess|checkmate|stalemate|castling|zugzwang)\b/i
+      /\b(?:sudoku grid|tic-tac-toe|connect four|gomoku)\b/i
+    ]
+  },
+  {
+    id: 'lexical:chess_terms',
+    category: 'lexical',
+    precedence: 32,
+    reason: 'chess_move',
+    role: 'games_spatial',
+    description: 'Natural language chess gameplay terms excluding historical trivia',
+    patterns: [
+      CHESS_TERMS_PATTERN
+    ],
+    excludePatterns: [
+      CHESS_TRIVIA_EXCLUSION
     ]
   },
   {
@@ -255,7 +311,7 @@ export const KEYWORD_RULES: CatalogRule[] = [
     precedence: 41,
     reason: 'keyword',
     role: 'general_fast',
-    description: 'Geography, creative writing, proofreading, and historical trivia',
+    description: 'Geography, creative writing, and proofreading',
     patterns: [
       /\b(?:geograph|latitude|longitude|elevation|continent|bordering countries|countries that border|capital of|mountain range|peninsula)\b/i,
       /\b(?:write (?:a|an)?(?:\s+\w+)?\s*(?:poem|story|haiku|essay|song|dialogue|letter|email))\b/i,
@@ -263,9 +319,22 @@ export const KEYWORD_RULES: CatalogRule[] = [
       /\b(?:narrative|protagonist|storyline|allegory|metaphor)\b/i,
       /\b(?:author|poet|novelist|playwright)\s+(?:wrote|penned|composed|published|authored)\b/i,
       /\b(?:literary|novel|poem|playwright|poetry|biography|novelist)\b/i,
-      /\b(?:does sentence a imply|same sense of the word|entailment)\b/i,
+      /\b(?:does sentence a imply|same sense of the word|entailment)\b/i
+    ]
+  },
+  {
+    id: 'keyword:structured_trivia',
+    category: 'keyword',
+    precedence: 41,
+    reason: 'keyword',
+    role: 'general_fast',
+    description: 'Structured historical and factual trivia excluding chess gameplay',
+    patterns: [
       /\bwho was\s+(?:the\s+)?(?:primary\s+)?(?:architect|author|founder|president|director|composer|painter|sculptor|leader|monarch|emperor|prime minister|creator)\b/i,
       /\b(?:who (?:wrote|directed|composed|invented|discovered)|what is the (?:capital of|[\w-]+\s+capital)|which country|what city)\b/i
+    ],
+    excludePatterns: [
+      CHESS_KEYWORDS_EXCLUSION
     ]
   },
   {

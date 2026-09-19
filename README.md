@@ -115,6 +115,8 @@ Rule evaluation strictly follows a verified total order:
 deny (0) > custom (10) > structure (20-24) > lexical (30-34) > keywords (40-50) > miss (99)
 ```
 * **Clinical & Legal Deny List (Precedence 0)**: Queries describing acute clinical emergencies (e.g., crushing chest pain), medical pharmacology / drug dosing (e.g., vancomycin dosing, pediatric titration), or legal liability strictly trigger the top-level deny list.
+  > [!NOTE]
+  > **Fast-Path Exclusion Shield vs. Clinical Triage**: The Deny List exists strictly to prevent hazardous queries from accidentally fast-pathing to coding or generalist specialists without seeing downstream safety guardrails. It is **not** an autonomous clinical diagnostic engine or legal compliance filter; queries with unlisted or subtle symptoms cleanly miss to Stage-1/L2 by design.
 * **Deny ∩ Fence Golden Guarantee**: Fenced code containing clinical emergency or dosing instructions (e.g. ```` ```python\n# pediatric dosage of vancomycin... ````) **strictly emits `reason: 'deny'`**, preventing code rules from bypassing safety guardrails.
 * **Code-over-Games Invariant**: Programming instructions involving chess (e.g., *"Write a Python script to parse a chess PGN"*) route to `code`, never `games_spatial`.
 
@@ -314,7 +316,7 @@ npm run bench
 
 ### Golden Invariant Suite (32/32 tests passing)
 
-100/100 and 0/115 are regression fixtures co-evolved with the rules. They are not an external generalization score. Calibrate with `npm run harvest:ood` on your logs.
+100/100 and 0/126 are regression fixtures co-evolved with the rules. They are not an external generalization score. Calibrate with `npm run harvest:ood` on your logs.
 
 * **Calibrated Fixtures (100 prompts)**: 100/100 pass rate on domain regression suite (`structure+lexical`).
 * **Conservative Preset Isolation**: Proves that default `structure` preset cleanly yields conversational and ambiguous domain phrasings to L2.

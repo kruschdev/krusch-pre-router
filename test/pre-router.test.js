@@ -677,7 +677,12 @@ test('catalog - every pattern in catalog executes in < 2ms on worst-case 8KB adv
   const adversarialInputs = [evilWhitespace, evilBackticks, evilUnclosedFence, evilBrackets];
 
   for (const rule of RULE_CATALOG) {
-    for (const pattern of rule.patterns) {
+    const allPatterns = [
+      ...rule.patterns,
+      ...(rule.excludePatterns ?? []),
+      ...(rule.conjunctions ? rule.conjunctions.flat() : [])
+    ];
+    for (const pattern of allPatterns) {
       for (const input of adversarialInputs) {
         const start = performance.now();
         pattern.test(input);
