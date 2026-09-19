@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/kruschdev/krusch-cascade-router/main/docs/assets/banner.png" alt="Krusch Pre-Router" width="800" />
+  <img src="https://raw.githubusercontent.com/kruschdev/krusch-pre-router/main/docs/assets/banner.png" alt="Krusch Pre-Router" width="800" />
 </p>
 
 <p align="center">
