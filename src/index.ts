@@ -1,6 +1,7 @@
 export {
   classifyPreRoute,
   classifySpecialistRole,
+  classifyLexical,
   classifyKeywords,
   isComplexPrompt,
   detectKnowledgeBoundary,
@@ -19,6 +20,8 @@ export {
   RULES_VERSION,
   MAX_PRE_ROUTE_SCAN_CHARS,
   DENY_RULES,
+  STRUCTURE_RULES,
+  LEXICAL_RULES,
   ANCHOR_RULES,
   KEYWORD_RULES,
   RULE_CATALOG

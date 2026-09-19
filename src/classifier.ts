@@ -15,6 +15,8 @@ import {
   RULES_VERSION,
   MAX_PRE_ROUTE_SCAN_CHARS,
   DENY_RULES,
+  STRUCTURE_RULES,
+  LEXICAL_RULES,
   ANCHOR_RULES,
   KEYWORD_RULES,
   RULE_CATALOG
@@ -34,6 +36,8 @@ export {
   RULES_VERSION,
   MAX_PRE_ROUTE_SCAN_CHARS,
   DENY_RULES,
+  STRUCTURE_RULES,
+  LEXICAL_RULES,
   ANCHOR_RULES,
   KEYWORD_RULES,
   RULE_CATALOG
@@ -178,15 +182,14 @@ export function isComplexPrompt(
  * Evaluates in microsecond CPU time whether an incoming prompt has an unambiguous
  * structural syntax footprint suitable for immediate fast-path dispatch, or whether it
  * should delegate to an L2 neural/embedding router or frontier model.
- *
- * Precedence Order:
- *   deny > custom > syntactic anchors > keywords (opt-in) > miss
+  * Precedence Order:
+ *   deny (0) > custom (10) > structure (20-24) > lexical (30-34) > keywords (40-50) > miss (99)
  */
 export function classifyPreRoute<TRole extends string = string>(
   messages: Message[] | string,
   options?: ClassifierOptions<TRole>
 ): PreRouteResult<TRole> {
-  const preset: RulePreset = options?.preset ?? 'anchors-only';
+  const preset: RulePreset = options?.preset ?? 'structure';
   const scope: MessageScope = options?.messageScope ?? 'last_user';
 
   let fullText = extractPromptText(messages, scope);
@@ -221,7 +224,7 @@ export function classifyPreRoute<TRole extends string = string>(
 
   // --------------------------------------------------------------------------
   // Rank 0: Deny List (Safety Exclusion Block List)
-  // Evaluated before custom rules or code fences.
+  // Evaluated before custom rules, code fences, or any syntactic anchors.
   // --------------------------------------------------------------------------
   for (const rule of DENY_RULES) {
     for (const pattern of rule.patterns) {
@@ -263,36 +266,8 @@ export function classifyPreRoute<TRole extends string = string>(
   }
 
   // --------------------------------------------------------------------------
-  // Rank 20: Grounded Reading Comprehension (Structural passage reference)
-  // --------------------------------------------------------------------------
-  const isReadingComprehension = 
-    /\b(?:based on (?:the|this|that)?\s*(?:provided|following|above|below)?\s*["']?(?:text|passage|article|excerpt|document|context|paragraph|historical account|case study)["']?)/i.test(scanText) ||
-    /\b(?:according to (?:the|this|that)?\s*(?:provided|following|above|below)?\s*["']?(?:text|passage|article|excerpt|document|context|historical account|case study)["']?)/i.test(scanText) ||
-    /\b(?:in (?:the|this)\s+(?:provided|following)?\s*["']?(?:text|passage|article|excerpt|document|paragraph|case study)["']?\s+(?:above|below)?)/i.test(scanText) ||
-    /\b(?:in paragraph \d+)\b/i.test(scanText) ||
-    /\b(?:summarize (?:the|this)\s+["']?(?:text|passage|article|excerpt|document|chapter|section)["']?)/i.test(scanText) ||
-    /\b(?:what does the author (?:mean|state|imply|claim|conclude|suggest|argue))\b/i.test(scanText) ||
-    /\b(?:main thesis of the author|author's main argument)\b/i.test(scanText) ||
-    /\b(?:from the\s+["']?(?:text|passage|excerpt|article|document)["']?\s+(?:above|below)?)/i.test(scanText) ||
-    /\b(?:reading comprehension|comprehension question|evaluate (?:whether|if) (?:the|this) (?:statement|claim|assertion) is (?:true|false|accurate|supported))\b/i.test(scanText) ||
-    /\b(?:information provided in (?:the|this)\s+["']?(?:preceding|provided|following)?\s*(?:text|case study|article|passage)["']?)/i.test(scanText);
-
-  if (isReadingComprehension) {
-    return {
-      isFastPath: true,
-      role: 'comprehension_rc',
-      confidence: 'high',
-      complexityScore,
-      suggestedAction: 'dispatch_specialist',
-      reason: 'comprehension',
-      ruleId: 'anchor:reading_comprehension',
-      scanWindowUsed,
-      rulesVersion: RULES_VERSION
-    };
-  }
-
-  // --------------------------------------------------------------------------
-  // Rank 21-24: Code Generation, Refactoring & Algorithm Synthesis
+  // Layer 1: Structural Syntax Rules (Active in ALL presets)
+  // Rank 20-24: Code fences, Stack traces, SQL queries, LaTeX, FEN/chess notation
   // --------------------------------------------------------------------------
   const isCodeFence = 
     /```(?!(?:md|markdown|text|plain|txt|prose)\b)[a-zA-Z0-9_#+-]+\b[\s\S]*?```/i.test(scanText) ||
@@ -306,7 +281,7 @@ export function classifyPreRoute<TRole extends string = string>(
       complexityScore,
       suggestedAction: 'dispatch_specialist',
       reason: 'fence',
-      ruleId: 'anchor:code_fence',
+      ruleId: 'structure:code_fence',
       scanWindowUsed,
       rulesVersion: RULES_VERSION
     };
@@ -321,7 +296,7 @@ export function classifyPreRoute<TRole extends string = string>(
       complexityScore,
       suggestedAction: 'dispatch_specialist',
       reason: 'stack_trace',
-      ruleId: 'anchor:stack_trace',
+      ruleId: 'structure:stack_trace',
       scanWindowUsed,
       rulesVersion: RULES_VERSION
     };
@@ -336,93 +311,12 @@ export function classifyPreRoute<TRole extends string = string>(
       complexityScore,
       suggestedAction: 'dispatch_specialist',
       reason: 'sql',
-      ruleId: 'anchor:sql',
+      ruleId: 'structure:sql',
       scanWindowUsed,
       rulesVersion: RULES_VERSION
     };
   }
 
-  const isCodeSyntax = 
-    /\b(?:write|create|implement|build|refactor|debug|fix|optimize|convert)\b[\s\S]{0,60}\b(?:code|script|function|class|method|algorithm|api|endpoint|sql query|component|hook|unit test|test suite|decorator|type|interface|database schema|middleware|resolver|generator|(?:ci\/cd|data|etl|build|deployment)\s+pipeline|dockerfile|regex|callback|promise|async\/await|binary search|quicksort|sorting|bfs|dfs|minimax|engine)\b/i.test(scanText) ||
-    /\b(?:how (?:do|can) I (?:implement|code|write|program|fix|debug|test|optimize|refactor))\b/i.test(scanText) ||
-    /\b(?:fix this (?:code|bug|error|issue|exception|stack trace|syntax|crash|warning))\b/i.test(scanText) ||
-    /\b(?:unit test|test suite|test case|pytest|jest|vitest|mocha|cargo test)\b/i.test(scanText) ||
-    (/\b(?:typescript|javascript|python|rust|golang|c\+\+|cpp|c#|java|scala|kotlin|swift|ruby|php|react|vue|angular|svelte|next\.js|node\.js|express|fastapi|django|flask|graphql|dockerfile|github actions|kubernetes|k8s|css flexbox|css grid|tailwind|sql query|postgresql|sqlite|redis|mongodb)\b/i.test(scanText) &&
-     /\b(?:error|bug|issue|exception|function|class|component|hook|query|schema|type|import|export|install|build|compile|syntax|loop|re-render|memory leak|thread|mutex|deadlock|concurrency|async|await|promise|callback|iterator|package|module|resolver|endpoint|route|layout|generic|workflow|search|sort|algorithm|engine|minimax|implementation)\b/i.test(scanText)) ||
-    /\b(?:def\s+[a-zA-Z_]\w*\s*\(|function\s+[a-zA-Z_]\w*\s*\(|const\s+[a-zA-Z_]\w*\s*=|let\s+[a-zA-Z_]\w*\s*=|var\s+[a-zA-Z_]\w*\s*=|fn\s+[a-zA-Z_]\w*\s*\(|func\s+(?:\([a-zA-Z0-9_*\s]+\)\s*)?[a-zA-Z_]\w*\s*\(|class\s+[a-zA-Z_]\w*\s*(?:extends|implements|\{|\:)|public\s+(?:static\s+)?void|import\s+.*\s+from|from\s+.*\s+import|#include\s+<|require\(['"].*['"]\)|package\s+main|console\.log\(|println!|std::|fmt\.Println)\b/.test(scanText) ||
-    /\buse[A-Z][a-zA-Z0-9_]+\b/.test(scanText) ||
-    /\b(?:generic type|type alias|interface\s+[a-zA-Z_]|struct\s+[a-zA-Z_]|impl\s+[a-zA-Z_]|Arc<Mutex<|RwLock<|flexbox layout|token bucket|lru cache|event emitter|pull request|git commit|git diff)\b/i.test(scanText);
-
-  if (isCodeSyntax) {
-    return {
-      isFastPath: true,
-      role: 'code',
-      confidence: 'high',
-      complexityScore,
-      suggestedAction: 'dispatch_specialist',
-      reason: 'code_syntax',
-      ruleId: 'anchor:code_syntax',
-      scanWindowUsed,
-      rulesVersion: RULES_VERSION
-    };
-  }
-
-  // --------------------------------------------------------------------------
-  // Rank 25: Chess & Spatial Board Games (State engines & discrete coordinates)
-  // --------------------------------------------------------------------------
-  const BARE_CHESS_WORD = /\b(?:chess|checkmate|stalemate|castling|zugzwang)\b/i;
-  const CHESS_TRIVIA_EXCLUSION = /\b(?:chess|checkmate|stalemate|castling|zugzwang|sicilian|defense|opening|gambit|endgame)\b/i;
-  const CHESS_STRUCTURE =
-    /\b(?:fen|pgn|en passant)\b/i.test(scanText) ||
-    /\b(?:board position|legal moves|(?:pawn|knight|bishop|rook|queen|king) move)\b/i.test(scanText) ||
-    /\b(?:sudoku grid|tic-tac-toe|connect four|gomoku)\b/i.test(scanText) ||
-    /\b[a-h][1-8][-x][a-h][1-8]\b/.test(scanText) ||
-    /(?:^|[\s(])(?:1\.|[1-9]\d*\.)\s*(?:[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8]|O-O-O|O-O)/.test(scanText);
-
-  const isGamesSpatial = CHESS_STRUCTURE || (
-    BARE_CHESS_WORD.test(scanText) &&
-    !/\b(?:history|champion|invented|origin|medieval|olympiad winner)\b/i.test(scanText)
-  );
-
-  if (isGamesSpatial) {
-    const isFen = /\bfen\b/i.test(scanText);
-    return {
-      isFastPath: true,
-      role: 'games_spatial',
-      confidence: 'high',
-      complexityScore,
-      suggestedAction: 'dispatch_specialist',
-      reason: isFen ? 'fen' : 'chess_move',
-      ruleId: isFen ? 'anchor:chess_fen' : 'anchor:chess_spatial',
-      scanWindowUsed,
-      rulesVersion: RULES_VERSION
-    };
-  }
-
-  // --------------------------------------------------------------------------
-  // Rank 26: Financial Statements, Balance Sheets & Formal Proofs
-  // --------------------------------------------------------------------------
-  const isDeepReasoning = 
-    /\b(?:net income|operating income|operating margin|gross margin|fiscal year|cash flow[s]?|diluted eps|earnings per share|balance sheet|sec filing|10-k|10-q|ebitda|ebit|cagr|amortization|depreciation|discounted cash flow|dcf model|valuation model|p\/e ratio|return on equity|roe|roic|capital expenditure|capex|free cash flow|wacc|working capital|covenant breach)\b/i.test(scanText) ||
-    /\b(?:formal (?:deductive )?logic proof|formal mathematical proof|deductive reasoning|proof by contradiction|mathematical proof|game theory|nash equilibrium|prisoner's dilemma|pareto optimal(?:ity|)?|counterfactual analysis|formal logic proof|first-order logic|syllogism proof|grim trigger|tit-for-tat|first fundamental theorem)\b/i.test(scanText);
-
-  if (isDeepReasoning) {
-    return {
-      isFastPath: true,
-      role: 'reasoning_deep',
-      confidence: 'high',
-      complexityScore,
-      suggestedAction: 'dispatch_specialist',
-      reason: 'deep_reasoning',
-      ruleId: 'anchor:deep_reasoning',
-      scanWindowUsed,
-      rulesVersion: RULES_VERSION
-    };
-  }
-
-  // --------------------------------------------------------------------------
-  // Rank 27-28: Explicit STEM / Math / Physics / LaTeX Formulas
-  // --------------------------------------------------------------------------
   const isLatex = /(?:\\frac|\\sum|\\sqrt|\\int|\\times|\\pm)/i.test(scanText);
   if (isLatex) {
     return {
@@ -432,42 +326,175 @@ export function classifyPreRoute<TRole extends string = string>(
       complexityScore,
       suggestedAction: 'dispatch_specialist',
       reason: 'latex',
-      ruleId: 'anchor:latex_math',
+      ruleId: 'structure:latex_math',
       scanWindowUsed,
       rulesVersion: RULES_VERSION
     };
   }
 
-  const isExplicitStem = 
-    /(?:equation|theorem|polynomial|integral|derivative|matrix|vector space|logarithm|physics|chemistry|biology|astronomy|thermodynamics|quantum|velocity|voltage|electric current|electrical resistance|resistor|molecule|atom|gravitat\w*|gravity|black hole|calculus|algebra|geometry|trigonometry|logarithmic|exponential|mitochondri\w*|phosphorylation|atp synthesis|photosynthesis|eukaryot\w*|orbital|fluid flow|navier-stokes|stefan-boltzmann|heisenberg|half-life|carbon-14|linear equation|system of (?:linear )?equations|nitrogen cycle|phosphorus cycle|fungi|self-attention|freezing point|boiling point)\b/i.test(scanText) ||
-    /\b(?:acceleration\s+(?:due to gravity|vector|formula|down the (?:plane|incline)|of the (?:object|particle|block|mass|car))|angular acceleration|centripetal acceleration|m\/s\^?2|rate of acceleration|constant acceleration)\b/i.test(scanText) ||
-    /\bkinetic energy\b[\s\S]{0,50}\b(?:joules|kg|m\/s|velocity|mass|formula|calculate|object|particle|motion|potential energy|conservation of energy)\b/i.test(scanText) ||
-    /\b(?:thermodynamic entropy|entropy of the system|entropy change|shannon entropy|entropy and enthalpy|entropy increases|second law of thermodynamics)\b/i.test(scanText) ||
-    /\bentropy\b[\s\S]{0,40}\b(?:temperature|joules|second law|thermodynamics|boltzmann|state function|reversib)\b/i.test(scanText) ||
-    /\b(?:calculate|determine|find)\s+(?:the\s+)?(?:derivative|integral|eigenvalue|limit|probability|velocity|acceleration|kinetic energy|net force|gravitational force|voltage|work|entropy|half-life|concentration|molarity|percentage|hypotenuse|root|standard deviation|variance)\b/i.test(scanText) ||
-    /\b(?:(?:joint|conditional|posterior|prior|binomial|poisson|marginal)\s+probability|probability\s+(?:distribution|density|mass\s+function|of\s+(?:getting|rolling|drawing|event|heads|tails)))\b/i.test(scanText) ||
-    /\b(?:dna\s+(?:sequence|sequencing|replication|polymerase|transcription|methylation|mutation|strand|helix|double\s+helix|break[s]?|cleavage|damage|repair|ligase)|recombinant\s+dna|mitochondrial\s+dna)\b/i.test(scanText) ||
-    /\b(?:utilitarianism|deontolog|epistemolog|syllogism|deductive logic|inductive logic|newtons|(?:net|gravitational|centripetal)\s+force|(?:atomic|rest|molar)\s+mass|speed of sound|blackbody|dark energy|cosmological constant|mitosis|meiosis|crispr)\b/i.test(scanText) ||
-    /\b\d+\s*[+\-*/^=]\s*\d+\b/.test(scanText);
+  const isFen = /(?:[rnbqkp1-8]{1,8}\/){7}[rnbqkp1-8]{1,8}/i.test(scanText);
+  const isPgn = /(?:^|[\r\n])\[(?:Event|Site|Date|Round|White|Black|Result)\s+"[^"]*"\]/i.test(scanText);
+  const isChessNotation = 
+    isFen ||
+    isPgn ||
+    /\b[a-h][1-8][-x][a-h][1-8]\b/.test(scanText) ||
+    /(?:^|[\s(])(?:1\.|[1-9]\d*\.)\s*(?:[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8]|O-O-O|O-O)/.test(scanText);
 
-  if (isExplicitStem) {
+  if (isChessNotation) {
     return {
       isFastPath: true,
-      role: 'factual_stem',
+      role: 'games_spatial',
       confidence: 'high',
       complexityScore,
       suggestedAction: 'dispatch_specialist',
-      reason: 'code_syntax',
-      ruleId: 'anchor:stem_explicit',
+      reason: isFen ? 'fen' : 'chess_move',
+      ruleId: 'structure:chess_fen',
       scanWindowUsed,
       rulesVersion: RULES_VERSION
     };
   }
 
   // --------------------------------------------------------------------------
-  // Rank 40-50: Keyword & Heuristic Rules (Quarantined behind 'anchors+keywords')
+  // Layer 2: Lexical Domain Rules (Rank 30-34)
+  // Active in 'structure+lexical', 'all', and legacy aliases 'anchors-only', 'anchors+keywords'
   // --------------------------------------------------------------------------
-  if (preset === 'anchors+keywords') {
+  const includeLexical = preset === 'structure+lexical' || preset === 'anchors-only' || preset === 'all' || preset === 'anchors+keywords';
+
+  if (includeLexical) {
+    // Rank 30: Grounded Reading Comprehension
+    const isReadingComprehension = 
+      /\b(?:based on (?:the|this|that)?\s*(?:provided|following|above|below)?\s*["']?(?:text|passage|article|excerpt|document|context|paragraph|historical account|case study)["']?)/i.test(scanText) ||
+      /\b(?:according to (?:the|this|that)?\s*(?:provided|following|above|below)?\s*["']?(?:text|passage|article|excerpt|document|context|historical account|case study)["']?)/i.test(scanText) ||
+      /\b(?:in (?:the|this)\s+(?:provided|following)?\s*["']?(?:text|passage|article|excerpt|document|paragraph|case study)["']?\s+(?:above|below)?)/i.test(scanText) ||
+      /\b(?:in paragraph \d+)\b/i.test(scanText) ||
+      /\b(?:summarize (?:the|this)\s+["']?(?:text|passage|article|excerpt|document|chapter|section)["']?)/i.test(scanText) ||
+      /\b(?:what does the author (?:mean|state|imply|claim|conclude|suggest|argue))\b/i.test(scanText) ||
+      /\b(?:main thesis of the author|author's main argument)\b/i.test(scanText) ||
+      /\b(?:from the\s+["']?(?:text|passage|excerpt|article|document)["']?\s+(?:above|below)?)/i.test(scanText) ||
+      /\b(?:reading comprehension|comprehension question|evaluate (?:whether|if) (?:the|this) (?:statement|claim|assertion) is (?:true|false|accurate|supported))\b/i.test(scanText) ||
+      /\b(?:information provided in (?:the|this)\s+["']?(?:preceding|provided|following)?\s*(?:text|case study|article|passage)["']?)/i.test(scanText);
+
+    if (isReadingComprehension) {
+      return {
+        isFastPath: true,
+        role: 'comprehension_rc',
+        confidence: 'high',
+        complexityScore,
+        suggestedAction: 'dispatch_specialist',
+        reason: 'comprehension',
+        ruleId: 'lexical:reading_comprehension',
+        scanWindowUsed,
+        rulesVersion: RULES_VERSION
+      };
+    }
+
+    // Rank 31: Code Syntax & task phrasing
+    const isCodeSyntax = 
+      /\b(?:write|create|implement|build|refactor|debug|fix|optimize|convert)\b[\s\S]{0,60}\b(?:code|script|function|class|method|algorithm|api|endpoint|sql query|component|hook|unit test|test suite|decorator|type|interface|database schema|middleware|resolver|generator|(?:ci\/cd|data|etl|build|deployment)\s+pipeline|dockerfile|regex|callback|promise|async\/await|binary search|quicksort|sorting|bfs|dfs|minimax|engine)\b/i.test(scanText) ||
+      /\b(?:how (?:do|can) I (?:implement|code|write|program|fix|debug|test|optimize|refactor))\b/i.test(scanText) ||
+      /\b(?:fix this (?:code|bug|error|issue|exception|stack trace|syntax|crash|warning))\b/i.test(scanText) ||
+      /\b(?:unit test|test suite|test case|pytest|jest|vitest|mocha|cargo test)\b/i.test(scanText) ||
+      (/\b(?:typescript|javascript|python|rust|golang|c\+\+|cpp|c#|java|scala|kotlin|swift|ruby|php|react|vue|angular|svelte|next\.js|node\.js|express|fastapi|django|flask|graphql|dockerfile|github actions|kubernetes|k8s|css flexbox|css grid|tailwind|sql query|postgresql|sqlite|redis|mongodb)\b/i.test(scanText) &&
+        /\b(?:error|bug|issue|exception|function|class|component|hook|query|schema|type|import|export|install|build|compile|syntax|loop|re-render|memory leak|thread|mutex|deadlock|concurrency|async|await|promise|callback|iterator|package|module|resolver|endpoint|route|layout|generic|workflow|search|sort|algorithm|engine|minimax|implementation)\b/i.test(scanText)) ||
+      /\b(?:def\s+[a-zA-Z_]\w*\s*\(|function\s+[a-zA-Z_]\w*\s*\(|const\s+[a-zA-Z_]\w*\s*=|let\s+[a-zA-Z_]\w*\s*=|var\s+[a-zA-Z_]\w*\s*=|fn\s+[a-zA-Z_]\w*\s*\(|func\s+(?:\([a-zA-Z0-9_*\s]+\)\s*)?[a-zA-Z_]\w*\s*\(|class\s+[a-zA-Z_]\w*\s*(?:extends|implements|\{|\:)|public\s+(?:static\s+)?void|import\s+.*\s+from|from\s+.*\s+import|#include\s+<|require\(['"].*['"]\)|package\s+main|console\.log\(|println!|std::|fmt\.Println)\b/.test(scanText) ||
+      /\buse[A-Z][a-zA-Z0-9_]+\b/.test(scanText) ||
+      /\b(?:generic type|type alias|interface\s+[a-zA-Z_]|struct\s+[a-zA-Z_]|impl\s+[a-zA-Z_]|Arc<Mutex<|RwLock<|flexbox layout|token bucket|lru cache|event emitter|pull request|git commit|git diff)\b/i.test(scanText);
+
+    if (isCodeSyntax) {
+      return {
+        isFastPath: true,
+        role: 'code',
+        confidence: 'high',
+        complexityScore,
+        suggestedAction: 'dispatch_specialist',
+        reason: 'code_syntax',
+        ruleId: 'lexical:code_syntax',
+        scanWindowUsed,
+        rulesVersion: RULES_VERSION
+      };
+    }
+
+    // Rank 32: Chess & Spatial Games (Natural language terms)
+    const BARE_CHESS_WORD = /\b(?:chess|checkmate|stalemate|castling|zugzwang)\b/i;
+    const CHESS_TRIVIA_EXCLUSION = /\b(?:chess|checkmate|stalemate|castling|zugzwang|sicilian|defense|opening|gambit|endgame)\b/i;
+    const CHESS_STRUCTURE_LEXICAL =
+      /\b(?:en passant)\b/i.test(scanText) ||
+      /\b(?:board position|legal moves|(?:pawn|knight|bishop|rook|queen|king) move)\b/i.test(scanText) ||
+      /\b(?:sudoku grid|tic-tac-toe|connect four|gomoku)\b/i.test(scanText);
+
+    const isGamesSpatial = CHESS_STRUCTURE_LEXICAL || (
+      BARE_CHESS_WORD.test(scanText) &&
+      !/\b(?:history|champion|invented|origin|medieval|olympiad winner)\b/i.test(scanText)
+    );
+
+    if (isGamesSpatial) {
+      return {
+        isFastPath: true,
+        role: 'games_spatial',
+        confidence: 'high',
+        complexityScore,
+        suggestedAction: 'dispatch_specialist',
+        reason: 'chess_move',
+        ruleId: 'lexical:chess_spatial',
+        scanWindowUsed,
+        rulesVersion: RULES_VERSION
+      };
+    }
+
+    // Rank 33: Financial Statements & Formal Proofs
+    const isDeepReasoning = 
+      /\b(?:net income|operating income|operating margin|gross margin|fiscal year|cash flow[s]?|diluted eps|earnings per share|balance sheet|sec filing|10-k|10-q|ebitda|ebit|cagr|amortization|depreciation|discounted cash flow|dcf model|valuation model|p\/e ratio|return on equity|roe|roic|capital expenditure|capex|free cash flow|wacc|working capital|covenant breach)\b/i.test(scanText) ||
+      /\b(?:formal (?:deductive )?logic proof|formal mathematical proof|deductive reasoning|proof by contradiction|mathematical proof|game theory|nash equilibrium|prisoner's dilemma|pareto optimal(?:ity|)?|counterfactual analysis|formal logic proof|first-order logic|syllogism proof|grim trigger|tit-for-tat|first fundamental theorem)\b/i.test(scanText);
+
+    if (isDeepReasoning) {
+      return {
+        isFastPath: true,
+        role: 'reasoning_deep',
+        confidence: 'high',
+        complexityScore,
+        suggestedAction: 'dispatch_specialist',
+        reason: 'deep_reasoning',
+        ruleId: 'lexical:deep_reasoning',
+        scanWindowUsed,
+        rulesVersion: RULES_VERSION
+      };
+    }
+
+    // Rank 34: Explicit STEM / Math / Physics
+    const isExplicitStem = 
+      /(?:equation|theorem|polynomial|integral|derivative|matrix|vector space|logarithm|physics|chemistry|biology|astronomy|thermodynamics|quantum|velocity|voltage|electric current|electrical resistance|resistor|molecule|atom|gravitat\w*|gravity|black hole|calculus|algebra|geometry|trigonometry|logarithmic|exponential|mitochondri\w*|phosphorylation|atp synthesis|photosynthesis|eukaryot\w*|orbital|fluid flow|navier-stokes|stefan-boltzmann|heisenberg|half-life|carbon-14|linear equation|system of (?:linear )?equations|nitrogen cycle|phosphorus cycle|fungi|self-attention|freezing point|boiling point)\b/i.test(scanText) ||
+      /\b(?:acceleration\s+(?:due to gravity|vector|formula|down the (?:plane|incline)|of the (?:object|particle|block|mass|car))|angular acceleration|centripetal acceleration|m\/s\^?2|rate of acceleration|constant acceleration)\b/i.test(scanText) ||
+      /\bkinetic energy\b[\s\S]{0,50}\b(?:joules|kg|m\/s|velocity|mass|formula|calculate|object|particle|motion|potential energy|conservation of energy)\b/i.test(scanText) ||
+      /\b(?:thermodynamic entropy|entropy of the system|entropy change|shannon entropy|entropy and enthalpy|entropy increases|second law of thermodynamics)\b/i.test(scanText) ||
+      /\bentropy\b[\s\S]{0,40}\b(?:temperature|joules|second law|thermodynamics|boltzmann|state function|reversib)\b/i.test(scanText) ||
+      /\b(?:calculate|determine|find)\s+(?:the\s+)?(?:derivative|integral|eigenvalue|limit|probability|velocity|acceleration|kinetic energy|net force|gravitational force|voltage|work|entropy|half-life|concentration|molarity|percentage|hypotenuse|root|standard deviation|variance)\b/i.test(scanText) ||
+      /\b(?:(?:joint|conditional|posterior|prior|binomial|poisson|marginal)\s+probability|probability\s+(?:distribution|density|mass\s+function|of\s+(?:getting|rolling|drawing|event|heads|tails)))\b/i.test(scanText) ||
+      /\b(?:dna\s+(?:sequence|sequencing|replication|polymerase|transcription|methylation|mutation|strand|helix|double\s+helix|break[s]?|cleavage|damage|repair|ligase)|recombinant\s+dna|mitochondrial\s+dna)\b/i.test(scanText) ||
+      /\b(?:utilitarianism|deontolog|epistemolog|syllogism|deductive logic|inductive logic|newtons|(?:net|gravitational|centripetal)\s+force|(?:atomic|rest|molar)\s+mass|speed of sound|blackbody|dark energy|cosmological constant|mitosis|meiosis|crispr)\b/i.test(scanText) ||
+      /\b\d+\s*[+\-*/^=]\s*\d+\b/.test(scanText);
+
+    if (isExplicitStem) {
+      return {
+        isFastPath: true,
+        role: 'factual_stem',
+        confidence: 'high',
+        complexityScore,
+        suggestedAction: 'dispatch_specialist',
+        reason: 'code_syntax',
+        ruleId: 'lexical:stem_explicit',
+        scanWindowUsed,
+        rulesVersion: RULES_VERSION
+      };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Layer 3: Keyword & Heuristic Rules (Rank 40-50)
+  // Active ONLY when preset is 'all' (or legacy 'anchors+keywords')
+  // --------------------------------------------------------------------------
+  const includeKeywords = preset === 'all' || preset === 'anchors+keywords';
+
+  if (includeKeywords) {
     // Translation
     const isTranslation = 
       /\b(?:translate|translation)\b[\s\S]{0,60}\b(?:into|to|from|in)\s+(?:spanish|french|german|chinese|japanese|russian|italian|portuguese|hindi|arabic|korean|dutch|swedish|latin|english|mandarin|cantonese|vietnamese|greek|hebrew|polish|turkish|tagalog)\b/i.test(scanText) ||
@@ -491,6 +518,7 @@ export function classifyPreRoute<TRole extends string = string>(
     }
 
     // Geography, writing, and structured trivia
+    const CHESS_TRIVIA_EXCLUSION = /\b(?:chess|checkmate|stalemate|castling|zugzwang|sicilian|defense|opening|gambit|endgame)\b/i;
     const isGeneralKeyword = 
       /\b(?:geograph|latitude|longitude|elevation|continent|bordering countries|countries that border|capital of|mountain range|peninsula)\b/i.test(scanText) ||
       /\b(?:write (?:a|an)?(?:\s+\w+)?\s*(?:poem|story|haiku|essay|song|dialogue|letter|email))\b/i.test(scanText) ||
@@ -553,13 +581,23 @@ export function classifyPreRoute<TRole extends string = string>(
 }
 
 /**
- * Opt-in helper to classify prompt with keywords enabled ('anchors+keywords' preset).
+ * Helper to classify prompt with both structure and lexical-domain rules enabled ('structure+lexical' preset).
+ */
+export function classifyLexical<TRole extends string = string>(
+  messages: Message[] | string,
+  options?: Omit<ClassifierOptions<TRole>, 'preset'>
+): PreRouteResult<TRole> {
+  return classifyPreRoute(messages, { ...options, preset: 'structure+lexical' });
+}
+
+/**
+ * Opt-in helper to classify prompt with full recall ('all' preset: structure + lexical + keywords).
  */
 export function classifyKeywords<TRole extends string = string>(
   messages: Message[] | string,
   options?: Omit<ClassifierOptions<TRole>, 'preset'>
 ): PreRouteResult<TRole> {
-  return classifyPreRoute(messages, { ...options, preset: 'anchors+keywords' });
+  return classifyPreRoute(messages, { ...options, preset: 'all' });
 }
 
 /**

@@ -5,7 +5,7 @@ export const MAX_PRE_ROUTE_SCAN_CHARS = 8000;
 
 export interface CatalogRule {
   id: string;
-  category: 'deny' | 'anchor' | 'keyword' | 'boundary';
+  category: 'deny' | 'structure' | 'lexical' | 'keyword' | 'boundary' | 'anchor';
   precedence: number; // Lower number = higher priority
   reason: PreRouteReason;
   role?: DefaultSpecialistRole;
@@ -61,15 +61,82 @@ export const DENY_RULES: CatalogRule[] = [
 ];
 
 /**
- * 1. Syntactic Anchor Rules (Precedence Rank 20-30)
- * Deterministic grammatical and syntactic structures with zero linguistic drift.
- * Active in all presets ('anchors-only' and 'anchors+keywords').
+ * 1. Structural Syntax Rules (Precedence Rank 20-25)
+ * Deterministic syntactic structures with ZERO linguistic drift.
+ * Active in ALL presets ('structure' [default], 'structure+lexical', 'all').
  */
-export const ANCHOR_RULES: CatalogRule[] = [
+export const STRUCTURE_RULES: CatalogRule[] = [
   {
-    id: 'anchor:reading_comprehension',
-    category: 'anchor',
+    id: 'structure:code_fence',
+    category: 'structure',
     precedence: 20,
+    reason: 'fence',
+    role: 'code',
+    description: 'Markdown code blocks tagged with programming languages or containing code constructs',
+    patterns: [
+      /```(?!(?:md|markdown|text|plain|txt|prose)\b)[a-zA-Z0-9_#+-]+\b[\s\S]*?```/i,
+      /```(?:(?!(?:```))[\s\S])*?(?:\b(?:def\s+\w+|function\s+\w+|class\s+\w+|import\s+[\w{}*]+|return\b|console\.log|SELECT\s+|INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM)|\b(?:const|let|var)\s+\w+\s*=)[\s\S]*?```/i
+    ]
+  },
+  {
+    id: 'structure:stack_trace',
+    category: 'structure',
+    precedence: 21,
+    reason: 'stack_trace',
+    role: 'code',
+    description: 'System runtime exceptions and crash stack traces',
+    patterns: [
+      /(?:Traceback \(most recent call last\)|TypeError:|SyntaxError:|ReferenceError:|NullPointerException|IndexOutOfBoundsException|ModuleNotFoundError:|panic:|Segmentation fault|SIGSEGV|Uncaught Error:)/i
+    ]
+  },
+  {
+    id: 'structure:sql',
+    category: 'structure',
+    precedence: 22,
+    reason: 'sql',
+    role: 'code',
+    description: 'Structured SQL queries and database DDL/DML commands',
+    patterns: [
+      /\b(?:SELECT\s+[\s\S]+?\s+FROM|INSERT\s+INTO|UPDATE\s+[\s\S]+?\s+SET|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE)\b/i
+    ]
+  },
+  {
+    id: 'structure:latex_math',
+    category: 'structure',
+    precedence: 23,
+    reason: 'latex',
+    role: 'factual_stem',
+    description: 'Formal LaTeX equations and mathematical expressions',
+    patterns: [
+      /(?:\\frac|\\sum|\\sqrt|\\int|\\times|\\pm)/i
+    ]
+  },
+  {
+    id: 'structure:chess_fen',
+    category: 'structure',
+    precedence: 24,
+    reason: 'fen',
+    role: 'games_spatial',
+    description: 'Deterministic chess notation, FEN positions, and discrete coordinate moves',
+    patterns: [
+      /(?:[rnbqkp1-8]{1,8}\/){7}[rnbqkp1-8]{1,8}/i,
+      /(?:^|[\r\n])\[(?:Event|Site|Date|Round|White|Black|Result)\s+"[^"]*"\]/i,
+      /\b[a-h][1-8][-x][a-h][1-8]\b/,
+      /(?:^|[\s(])(?:1\.|[1-9]\d*\.)\s*(?:[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8]|O-O-O|O-O)/
+    ]
+  }
+];
+
+/**
+ * 2. Lexical Domain Rules (Precedence Rank 30-35)
+ * Natural language technical phrases, domain terms, and collocations.
+ * Active in 'structure+lexical' and 'all' presets.
+ */
+export const LEXICAL_RULES: CatalogRule[] = [
+  {
+    id: 'lexical:reading_comprehension',
+    category: 'lexical',
+    precedence: 30,
     reason: 'comprehension',
     role: 'comprehension_rc',
     description: 'Structured textual comprehension anchored by explicit excerpt references',
@@ -87,32 +154,9 @@ export const ANCHOR_RULES: CatalogRule[] = [
     ]
   },
   {
-    id: 'anchor:code_fence',
-    category: 'anchor',
-    precedence: 21,
-    reason: 'fence',
-    role: 'code',
-    description: 'Markdown code blocks tagged with programming languages or containing code constructs',
-    patterns: [
-      /```(?!(?:md|markdown|text|plain|txt|prose)\b)[a-zA-Z0-9_#+-]+\b[\s\S]*?```/i,
-      /```(?:(?!(?:```))[\s\S])*?(?:\b(?:def\s+\w+|function\s+\w+|class\s+\w+|import\s+[\w{}*]+|return\b|console\.log|SELECT\s+|INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM)|\b(?:const|let|var)\s+\w+\s*=)[\s\S]*?```/i
-    ]
-  },
-  {
-    id: 'anchor:stack_trace',
-    category: 'anchor',
-    precedence: 22,
-    reason: 'stack_trace',
-    role: 'code',
-    description: 'System runtime exceptions and crash stack traces',
-    patterns: [
-      /(?:Traceback \(most recent call last\)|TypeError:|SyntaxError:|ReferenceError:|NullPointerException|IndexOutOfBoundsException|ModuleNotFoundError:|panic:|Segmentation fault|SIGSEGV|Uncaught Error:)/i
-    ]
-  },
-  {
-    id: 'anchor:code_syntax',
-    category: 'anchor',
-    precedence: 23,
+    id: 'lexical:code_syntax',
+    category: 'lexical',
+    precedence: 31,
     reason: 'code_syntax',
     role: 'code',
     description: 'Language function signatures, type definitions, imports, and framework structures',
@@ -129,35 +173,23 @@ export const ANCHOR_RULES: CatalogRule[] = [
     ]
   },
   {
-    id: 'anchor:sql',
-    category: 'anchor',
-    precedence: 24,
-    reason: 'sql',
-    role: 'code',
-    description: 'Structured SQL queries and database DDL/DML commands',
-    patterns: [
-      /\b(?:SELECT\s+[\s\S]+?\s+FROM|INSERT\s+INTO|UPDATE\s+[\s\S]+?\s+SET|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE)\b/i
-    ]
-  },
-  {
-    id: 'anchor:chess_spatial',
-    category: 'anchor',
-    precedence: 25,
-    reason: 'fen',
+    id: 'lexical:chess_spatial',
+    category: 'lexical',
+    precedence: 32,
+    reason: 'chess_move',
     role: 'games_spatial',
-    description: 'Deterministic chess notation, FEN positions, and discrete coordinate moves',
+    description: 'Natural language board game terms, moves, and puzzles',
     patterns: [
-      /\b(?:fen|pgn|en passant)\b/i,
+      /\b(?:en passant)\b/i,
       /\b(?:board position|legal moves|(?:pawn|knight|bishop|rook|queen|king) move)\b/i,
       /\b(?:sudoku grid|tic-tac-toe|connect four|gomoku)\b/i,
-      /\b[a-h][1-8][-x][a-h][1-8]\b/,
-      /(?:^|[\s(])(?:1\.|[1-9]\d*\.)\s*(?:[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8]|O-O-O|O-O)/
+      /\b(?:chess|checkmate|stalemate|castling|zugzwang)\b/i
     ]
   },
   {
-    id: 'anchor:deep_reasoning',
-    category: 'anchor',
-    precedence: 26,
+    id: 'lexical:deep_reasoning',
+    category: 'lexical',
+    precedence: 33,
     reason: 'deep_reasoning',
     role: 'reasoning_deep',
     description: 'Financial statements, balance sheet reconciliations, and formal mathematical proofs',
@@ -167,20 +199,9 @@ export const ANCHOR_RULES: CatalogRule[] = [
     ]
   },
   {
-    id: 'anchor:latex_math',
-    category: 'anchor',
-    precedence: 27,
-    reason: 'latex',
-    role: 'factual_stem',
-    description: 'Formal LaTeX equations and mathematical expressions',
-    patterns: [
-      /(?:\\frac|\\sum|\\sqrt|\\int|\\times|\\pm)/i
-    ]
-  },
-  {
-    id: 'anchor:stem_explicit',
-    category: 'anchor',
-    precedence: 28,
+    id: 'lexical:stem_explicit',
+    category: 'lexical',
+    precedence: 34,
     reason: 'code_syntax',
     role: 'factual_stem',
     description: 'Explicit STEM, physics laws, thermodynamics, and algebraic expressions',
@@ -200,9 +221,17 @@ export const ANCHOR_RULES: CatalogRule[] = [
 ];
 
 /**
- * 2. Keyword & Heuristic Rules (Precedence Rank 40-50)
+ * Backward-compatible alias combining structure and lexical domain rules.
+ */
+export const ANCHOR_RULES: CatalogRule[] = [
+  ...STRUCTURE_RULES,
+  ...LEXICAL_RULES
+];
+
+/**
+ * 3. Keyword & Heuristic Rules (Precedence Rank 40-50)
  * Natural language translation, geography, open-ended trivia, and closed-world tasks.
- * ONLY ACTIVE when preset is 'anchors+keywords'.
+ * ONLY ACTIVE when preset is 'all' (or legacy 'anchors+keywords').
  */
 export const KEYWORD_RULES: CatalogRule[] = [
   {
@@ -260,6 +289,7 @@ export const KEYWORD_RULES: CatalogRule[] = [
 
 export const RULE_CATALOG: CatalogRule[] = [
   ...DENY_RULES,
-  ...ANCHOR_RULES,
+  ...STRUCTURE_RULES,
+  ...LEXICAL_RULES,
   ...KEYWORD_RULES
 ];

@@ -200,26 +200,59 @@ test('Holdout Evaluation - 100+ Syntactic Anchor Regression Fixtures', () => {
   assert.ok(avgUsPerPrompt < 500, `Average classification latency must be < 500 µs (got ${avgUsPerPrompt.toFixed(2)} µs)`);
 });
 
-test('Holdout Evaluation - Conservative Preset Isolation (anchors-only default)', () => {
-  // Pure syntactic anchors must succeed under anchors-only
-  const anchorSample = 'Write an algorithm in TypeScript to detect cycles in a directed graph.';
-  const anchorRes = classifyPreRoute(anchorSample);
-  assert.equal(anchorRes.isFastPath, true);
-  assert.equal(anchorRes.role, 'code');
-  assert.equal(anchorRes.reason, 'code_syntax');
+test('Holdout Evaluation - Conservative Preset Isolation (structure default)', () => {
+  // Pure structural syntax must succeed under default 'structure' preset
+  const fenceSample = '```typescript\nfunction detectCycles(graph: Graph): boolean { return false; }\n```';
+  const fenceRes = classifyPreRoute(fenceSample);
+  assert.equal(fenceRes.isFastPath, true);
+  assert.equal(fenceRes.role, 'code');
+  assert.equal(fenceRes.reason, 'fence');
 
-  // Conversational keywords MUST miss by default under anchors-only
+  const sqlSample = 'SELECT u.id, u.email FROM users u WHERE u.active = true;';
+  const sqlRes = classifyPreRoute(sqlSample);
+  assert.equal(sqlRes.isFastPath, true);
+  assert.equal(sqlRes.role, 'code');
+  assert.equal(sqlRes.reason, 'sql');
+
+  const latexSample = 'Compute \\frac{d}{dx} \\left( \\sqrt{x^2 + 1} \\right)';
+  const latexRes = classifyPreRoute(latexSample);
+  assert.equal(latexRes.isFastPath, true);
+  assert.equal(latexRes.role, 'factual_stem');
+  assert.equal(latexRes.reason, 'latex');
+
+  const chessSample = '1. e4 e5 2. Nf3 Nc6 3. Bb5 a6';
+  const chessRes = classifyPreRoute(chessSample);
+  assert.equal(chessRes.isFastPath, true);
+  assert.equal(chessRes.role, 'games_spatial');
+
+  // Natural language domain phrasing MUST miss by default under 'structure'
+  const nlCodeSample = 'Write an algorithm in TypeScript to detect cycles in a directed graph.';
+  const defaultCodeRes = classifyPreRoute(nlCodeSample);
+  assert.equal(defaultCodeRes.isFastPath, false, 'NL code request must miss under default structure');
+  assert.equal(defaultCodeRes.role, undefined);
+  assert.equal(defaultCodeRes.reason, 'miss');
+
+  // Adversarial trap: "entropy of team culture" must miss cleanly under structure default
+  const trapRes = classifyPreRoute("What's the entropy of this team's culture?");
+  assert.equal(trapRes.isFastPath, false, 'Metaphorical entropy must miss under structure default');
+  assert.equal(trapRes.reason, 'miss');
+
+  // But fast-path when opt-in 'structure+lexical' (or legacy 'anchors-only') preset is enabled
+  const optInCodeRes = classifyPreRoute(nlCodeSample, { preset: 'structure+lexical' });
+  assert.equal(optInCodeRes.isFastPath, true);
+  assert.equal(optInCodeRes.role, 'code');
+  assert.equal(optInCodeRes.reason, 'code_syntax');
+
+  // Conversational keywords MUST miss under both 'structure' and 'structure+lexical'
   const keywordSample = 'Translate "Good morning, hope you have a productive day" into German.';
-  const defaultRes = classifyPreRoute(keywordSample);
-  assert.equal(defaultRes.isFastPath, false, 'Default anchors-only must miss keywords');
-  assert.equal(defaultRes.role, undefined);
-  assert.equal(defaultRes.reason, 'miss');
+  assert.equal(classifyPreRoute(keywordSample).isFastPath, false, 'Default structure must miss keywords');
+  assert.equal(classifyPreRoute(keywordSample, { preset: 'structure+lexical' }).isFastPath, false);
 
-  // But fast-path when opt-in preset is enabled
-  const optInRes = classifyPreRoute(keywordSample, { preset: 'anchors+keywords' });
-  assert.equal(optInRes.isFastPath, true);
-  assert.equal(optInRes.role, 'general_fast');
-  assert.equal(optInRes.reason, 'keyword');
+  // But fast-path when 'all' (or legacy 'anchors+keywords') preset is enabled
+  const optInAllRes = classifyPreRoute(keywordSample, { preset: 'all' });
+  assert.equal(optInAllRes.isFastPath, true);
+  assert.equal(optInAllRes.role, 'general_fast');
+  assert.equal(optInAllRes.reason, 'keyword');
 });
 
 test('Holdout Evaluation - Conversational Wrapper Invariance', () => {
@@ -238,7 +271,7 @@ test('Holdout Evaluation - Conversational Wrapper Invariance', () => {
       const isKeyword = item.expected === 'general_fast';
       const predicted = classifySpecialistRole(wrappedPrompt, { 
         prunePreRouting: true,
-        preset: isKeyword ? 'anchors+keywords' : 'anchors-only'
+        preset: isKeyword ? 'all' : 'structure+lexical'
       });
       totalWrapped++;
       if (predicted === item.expected) {
@@ -274,31 +307,52 @@ test('Holdout Evaluation - Knowledge Boundary Gating on Closed-World Tasks', () 
 });
 
 test('L1 Pre-Router - classifyPreRoute Fast-Path vs L2 Delegation', () => {
-  // Fast-Path queries (code, math, chess, comprehension) under default anchors-only
-  const fastPathSamples = [
-    { query: 'Write a Python function to compute the Fibonacci sequence using memoization.', expectedRole: 'code' },
-    { query: 'Calculate \\frac{5}{8} + \\sqrt{64} and solve the resulting quadratic equation.', expectedRole: 'factual_stem' },
-    { query: 'White to move: 1. e4 e5 2. Nf3 Nc6 3. Bb5. Is this the Ruy Lopez opening?', expectedRole: 'games_spatial' },
-    { query: 'Based on the provided passage, what was the primary thesis of the author?', expectedRole: 'comprehension_rc' },
-    { query: 'Analyze the 10-K balance sheet and calculate the diluted EPS and EBITDA.', expectedRole: 'reasoning_deep' }
+  // Pure structural syntax fast-paths under default 'structure' preset
+  const structureSamples = [
+    { query: '```python\ndef fib(n):\n    return n if n <= 1 else fib(n-1) + fib(n-2)\n```', expectedRole: 'code', reason: 'fence' },
+    { query: 'SELECT u.id, u.email FROM users u WHERE u.active = true;', expectedRole: 'code', reason: 'sql' },
+    { query: 'Calculate \\frac{5}{8} + \\sqrt{64} and solve the resulting equation.', expectedRole: 'factual_stem', reason: 'latex' },
+    { query: '1. e4 e5 2. Nf3 Nc6 3. Bb5 a6', expectedRole: 'games_spatial', reason: 'chess_move' },
+    { query: 'Traceback (most recent call last):\nTypeError: Cannot read properties of undefined', expectedRole: 'code', reason: 'stack_trace' }
   ];
 
-  for (const item of fastPathSamples) {
+  for (const item of structureSamples) {
     const res = classifyPreRoute(item.query);
     assert.equal(res.isFastPath, true, `Expected query "${item.query}" to be Fast-Path`);
     assert.equal(res.role, item.expectedRole, `Expected role ${item.expectedRole} for query "${item.query}"`);
+    assert.equal(res.reason, item.reason);
     assert.equal(res.confidence, 'high', `Expected high confidence for query "${item.query}"`);
     assert.equal(res.suggestedAction, 'dispatch_specialist', `Expected dispatch_specialist for query "${item.query}"`);
   }
 
-  // Keyword fast-paths under opt-in preset
+  // Lexical domain fast-paths under opt-in 'structure+lexical' preset
+  const lexicalSamples = [
+    { query: 'Write a Python function to compute the Fibonacci sequence using memoization.', expectedRole: 'code' },
+    { query: 'Based on the provided passage, what was the primary thesis of the author?', expectedRole: 'comprehension_rc' },
+    { query: 'Analyze the 10-K balance sheet and calculate the diluted EPS and EBITDA.', expectedRole: 'reasoning_deep' },
+    { query: 'What is the kinetic energy of a 2 kg object moving at 5 m/s?', expectedRole: 'factual_stem' }
+  ];
+
+  for (const item of lexicalSamples) {
+    // Must miss under default structure
+    const defaultRes = classifyPreRoute(item.query);
+    assert.equal(defaultRes.isFastPath, false, `Expected NL query "${item.query}" to miss under structure default`);
+    assert.equal(defaultRes.role, undefined);
+
+    // Must hit under structure+lexical
+    const optInRes = classifyPreRoute(item.query, { preset: 'structure+lexical' });
+    assert.equal(optInRes.isFastPath, true);
+    assert.equal(optInRes.role, item.expectedRole);
+  }
+
+  // Keyword fast-paths under opt-in 'all' preset
   const keywordSamples = [
     { query: 'Translate "Good morning, hope you have a productive day" into German.', expectedRole: 'general_fast' },
     { query: 'Convert 120 km to miles.', expectedRole: 'general_fast' }
   ];
 
   for (const item of keywordSamples) {
-    const res = classifyPreRoute(item.query, { preset: 'anchors+keywords' });
+    const res = classifyPreRoute(item.query, { preset: 'all' });
     assert.equal(res.isFastPath, true);
     assert.equal(res.role, item.expectedRole);
   }

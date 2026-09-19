@@ -22,17 +22,16 @@ const __dirname = path.dirname(__filename);
 
 // 1. L1 Fast-Path vs L2 Delegation Tests
 test('classifyPreRoute - Fast-Path Identification vs L2 Delegation', () => {
-  // Syntactic anchor samples (active in default anchors-only preset)
-  const anchorSamples = [
-    { query: 'Write a TypeScript function to reverse a linked list.', expectedRole: 'code', reason: 'code_syntax' },
+  // Pure structural syntax samples (active in default 'structure' preset)
+  const structureSamples = [
     { query: '```python\ndef quicksort(arr): pass\n```', expectedRole: 'code', reason: 'fence' },
+    { query: 'SELECT u.id, u.email FROM users u WHERE u.active = 1;', expectedRole: 'code', reason: 'sql' },
     { query: 'Calculate \\frac{7}{12} + \\sqrt{81} and find x in the quadratic equation.', expectedRole: 'factual_stem', reason: 'latex' },
-    { query: 'Given board position with FEN rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR, what is the best move?', expectedRole: 'games_spatial', reason: 'fen' },
-    { query: 'Based on the provided passage, what was the primary cause of the treaty failure?', expectedRole: 'comprehension_rc', reason: 'comprehension' },
-    { query: 'Analyze the 10-K balance sheet and calculate the diluted EPS and operating margin.', expectedRole: 'reasoning_deep', reason: 'deep_reasoning' }
+    { query: '1. e4 e5 2. Nf3 Nc6 3. Bb5 a6', expectedRole: 'games_spatial', reason: 'chess_move' },
+    { query: 'Traceback (most recent call last):\nTypeError: Cannot read properties of undefined', expectedRole: 'code', reason: 'stack_trace' }
   ];
 
-  for (const item of anchorSamples) {
+  for (const item of structureSamples) {
     const res = classifyPreRoute(item.query);
     assert.equal(res.isFastPath, true, `Expected query "${item.query}" to be Fast-Path`);
     assert.equal(res.role, item.expectedRole, `Expected role ${item.expectedRole} for query "${item.query}"`);
@@ -40,6 +39,26 @@ test('classifyPreRoute - Fast-Path Identification vs L2 Delegation', () => {
     assert.equal(res.confidence, 'high', `Expected high confidence for query "${item.query}"`);
     assert.equal(res.suggestedAction, 'dispatch_specialist', `Expected dispatch_specialist for query "${item.query}"`);
     assert.ok(res.scanWindowUsed.totalChars > 0);
+  }
+
+  // Lexical domain phrasing (active in opt-in 'structure+lexical' or legacy 'anchors-only')
+  const lexicalSamples = [
+    { query: 'Write a TypeScript function to reverse a linked list.', expectedRole: 'code', reason: 'code_syntax' },
+    { query: 'Based on the provided passage, what was the primary cause of the treaty failure?', expectedRole: 'comprehension_rc', reason: 'comprehension' },
+    { query: 'Analyze the 10-K balance sheet and calculate the diluted EPS and operating margin.', expectedRole: 'reasoning_deep', reason: 'deep_reasoning' }
+  ];
+
+  for (const item of lexicalSamples) {
+    // Under default structure, lexical phrasing must miss cleanly
+    const defaultMiss = classifyPreRoute(item.query);
+    assert.equal(defaultMiss.isFastPath, false, `Lexical query should miss under structure default`);
+    assert.equal(defaultMiss.role, undefined);
+
+    // Under structure+lexical, lexical phrasing fast-paths
+    const optInHit = classifyPreRoute(item.query, { preset: 'structure+lexical' });
+    assert.equal(optInHit.isFastPath, true);
+    assert.equal(optInHit.role, item.expectedRole);
+    assert.equal(optInHit.reason, item.reason);
   }
 
   // Keyword samples under opt-in preset
@@ -50,13 +69,13 @@ test('classifyPreRoute - Fast-Path Identification vs L2 Delegation', () => {
   ];
 
   for (const item of keywordSamples) {
-    // Under default anchors-only, keywords must miss cleanly
+    // Under default structure, keywords must miss cleanly
     const defaultMiss = classifyPreRoute(item.query);
-    assert.equal(defaultMiss.isFastPath, false, `Keyword query should miss under default anchors-only`);
+    assert.equal(defaultMiss.isFastPath, false, `Keyword query should miss under default structure`);
     assert.equal(defaultMiss.role, undefined);
     assert.equal(defaultMiss.reason, 'miss');
 
-    // Under anchors+keywords opt-in, keywords fast-path
+    // Under 'all' (or legacy 'anchors+keywords') opt-in, keywords fast-path
     const optInHit = classifyKeywords(item.query);
     assert.equal(optInHit.isFastPath, true);
     assert.equal(optInHit.role, item.expectedRole);
@@ -133,23 +152,23 @@ test('evaluateComplexityScore and pruneText', () => {
 test('PreRouteCache - LRU storage, whitespace normalization, and eviction', () => {
   const cache = new PreRouteCache({ maxSize: 2 });
 
-  const res1 = classifyPreRoute('Write a Python function');
-  const res2 = classifyPreRoute('Calculate 2 + 2');
+  const res1 = classifyPreRoute('```python\ndef quicksort(arr): pass\n```');
+  const res2 = classifyPreRoute('SELECT * FROM users;');
   const res3 = classifyPreRoute('1. e4 e5 2. Nf3 Nc6');
 
-  cache.set('Write a Python function', res1);
-  cache.set('Calculate 2 + 2', res2);
+  cache.set('```python\ndef quicksort(arr): pass\n```', res1);
+  cache.set('SELECT * FROM users;', res2);
 
   assert.equal(cache.size, 2);
-  assert.ok(cache.has('Write  a   Python   function')); // normalized whitespace matches
-  assert.equal(cache.get('Write a Python function')?.role, 'code');
+  assert.ok(cache.has('SELECT   *   FROM   users;')); // normalized whitespace matches
+  assert.equal(cache.get('```python\ndef quicksort(arr): pass\n```')?.role, 'code');
 
-  // Adding 3rd item should evict 'Calculate 2 + 2' because 'Write a Python function' was refreshed by get()
+  // Adding 3rd item should evict 'SELECT * FROM users;' because '```python...' was refreshed by get()
   cache.set('1. e4 e5 2. Nf3 Nc6', res3);
   assert.equal(cache.size, 2);
-  assert.ok(cache.has('Write a Python function'));
+  assert.ok(cache.has('```python\ndef quicksort(arr): pass\n```'));
   assert.ok(cache.has('1. e4 e5 2. Nf3 Nc6'));
-  assert.equal(cache.has('Calculate 2 + 2'), false);
+  assert.equal(cache.has('SELECT * FROM users;'), false);
 });
 
 test('PreRouteCache - cachePolicy hits vs all', () => {
@@ -171,7 +190,7 @@ test('createPreRouter - Stateful cached routing wrapper', () => {
   const router = createPreRouter({ cache: { maxSize: 10 } });
   assert.ok(router.cache);
 
-  const q = 'Write a fast binary search in C++';
+  const q = '```cpp\nint binary_search(int arr[], int x);\n```';
   const res1 = router.classify(q);
   assert.equal(res1.isFastPath, true);
   assert.equal(res1.role, 'code');
@@ -184,6 +203,14 @@ test('createPreRouter - Stateful cached routing wrapper', () => {
   // Clear cache
   router.clearCache();
   assert.equal(router.cache.size, 0);
+
+  // Test opt-in preset structure+lexical with natural language phrases
+  const lexicalRouter = createPreRouter({ preset: 'structure+lexical' });
+  const nlQuery = 'Write a fast binary search in C++';
+  const nlRes1 = lexicalRouter.classify(nlQuery);
+  assert.equal(nlRes1.isFastPath, true);
+  assert.equal(nlRes1.role, 'code');
+  assert.ok(lexicalRouter.cache?.has(nlQuery));
 });
 
 // 6. classifySpecialistRole Miss Behavior
@@ -199,7 +226,7 @@ test('classifySpecialistRole - Returns undefined on conversational/unstructured 
 // 7. Defensive Copying & Immutability Test
 test('PreRouteCache - Defensive cloning prevents cache corruption from caller mutation', () => {
   const router = createPreRouter();
-  const q = 'Write a quicksort function in Go';
+  const q = '```go\nfunc quicksort(arr []int) {}\n```';
 
   const res1 = router.classify(q);
   assert.equal(res1.role, 'code');
@@ -225,8 +252,24 @@ test('PreRouteCache - Message[] role differentiation and rule versioning in cach
   const key2 = router.cache?.normalizeKey(assistantMsg);
 
   assert.notEqual(key1, key2);
-  assert.equal(key1, `[v${RULES_VERSION}:anchors-only]user:What is 2 + 2?`);
-  assert.equal(key2, `[v${RULES_VERSION}:anchors-only]assistant:What is 2 + 2?`);
+  assert.equal(key1, `[v${RULES_VERSION}:structure]user:What is 2 + 2?`);
+  assert.equal(key2, `[v${RULES_VERSION}:structure]assistant:What is 2 + 2?`);
+
+  // Explicit golden rule version invalidation test
+  const cacheV1 = new PreRouteCache({ rulesVersion: 1 });
+  const cacheV2 = new PreRouteCache({ rulesVersion: 2 });
+  const prompt = 'SELECT * FROM users';
+  const k1 = cacheV1.normalizeKey(prompt);
+  const k2 = cacheV2.normalizeKey(prompt);
+  assert.equal(k1, '[v1:structure]SELECT * FROM users');
+  assert.equal(k2, '[v2:structure]SELECT * FROM users');
+  assert.notEqual(k1, k2);
+
+  // Storing under v1 does NOT hit under v2
+  const dummyRes = classifyPreRoute(prompt);
+  cacheV1.set(prompt, dummyRes);
+  assert.ok(cacheV1.has(prompt));
+  assert.equal(cacheV2.has(prompt), false, 'Cache entry stored under v1 must not hit in v2 cache');
 });
 
 // 9. Cache Namespacing Isolation
@@ -240,9 +283,9 @@ test('PreRouteCache - Namespace isolation prevents collision across configuratio
   const keyB = cacheB.normalizeKey(prompt);
   const keyDefault = cacheDefault.normalizeKey(prompt);
 
-  assert.equal(keyA, `[v${RULES_VERSION}:anchors-only][tenant-alpha]What is the sum of 10 and 20?`);
-  assert.equal(keyB, `[v${RULES_VERSION}:anchors-only][tenant-beta]What is the sum of 10 and 20?`);
-  assert.equal(keyDefault, `[v${RULES_VERSION}:anchors-only]What is the sum of 10 and 20?`);
+  assert.equal(keyA, `[v${RULES_VERSION}:structure][tenant-alpha]What is the sum of 10 and 20?`);
+  assert.equal(keyB, `[v${RULES_VERSION}:structure][tenant-beta]What is the sum of 10 and 20?`);
+  assert.equal(keyDefault, `[v${RULES_VERSION}:structure]What is the sum of 10 and 20?`);
   assert.notEqual(keyA, keyB);
   assert.notEqual(keyA, keyDefault);
 
@@ -253,7 +296,7 @@ test('PreRouteCache - Namespace isolation prevents collision across configuratio
   assert.equal(routerA.cache?.namespace, 'profile-a');
   assert.equal(routerB.cache?.namespace, 'profile-b');
 
-  const q = 'Write a Python function';
+  const q = '```python\ndef foo(): pass\n```';
   routerA.classify(q);
   assert.ok(routerA.cache?.has(q));
   assert.equal(routerB.cache?.has(q), false);
@@ -269,7 +312,7 @@ test('createPreRouter - onRoute non-blocking telemetry hook fires with v1 schema
     }
   });
 
-  const query = 'Write a quicksort in Go';
+  const query = '```go\nfunc quicksort(arr []int) {}\n```';
 
   // 1st call: Miss path from cache
   const res1 = router.classify(query);
@@ -278,7 +321,7 @@ test('createPreRouter - onRoute non-blocking telemetry hook fires with v1 schema
   assert.equal(events[0].fromCache, false);
   assert.equal(events[0].result.role, 'code');
   assert.equal(events[0].namespace, 'audit-test');
-  assert.equal(events[0].reason, 'code_syntax');
+  assert.equal(events[0].reason, 'fence');
   assert.ok(events[0].timestamp > 0);
 
   // 2nd call: Hit path from cache
@@ -299,7 +342,7 @@ test('createPreRouter - onRoute exceptions are swallowed and do not disrupt rout
   });
 
   assert.doesNotThrow(() => {
-    const res = router.classify('Write a quicksort in Rust');
+    const res = router.classify('```rust\nfn quicksort() {}\n```');
     assert.equal(res.role, 'code');
     assert.equal(res.isFastPath, true);
   });
@@ -325,19 +368,19 @@ test('classifyPreRoute - code fence requires language tag or code constructs to 
 
 // 13. Precision: STEM Qualified Keyword Gating
 test('classifyPreRoute - conversational probability and metaphorical DNA cleanly delegate to L2', () => {
-  const weatherRes = classifyPreRoute('There is a high probability of heavy rain this afternoon.');
+  const weatherRes = classifyPreRoute('There is a high probability of heavy rain this afternoon.', { preset: 'structure+lexical' });
   assert.equal(weatherRes.isFastPath, false);
   assert.equal(weatherRes.role, undefined);
 
-  const mathProbRes = classifyPreRoute('Calculate the probability of drawing three red aces from the deck.');
+  const mathProbRes = classifyPreRoute('Calculate the probability of drawing three red aces from the deck.', { preset: 'structure+lexical' });
   assert.equal(mathProbRes.isFastPath, true);
   assert.equal(mathProbRes.role, 'factual_stem');
 
-  const metaphorDnaRes = classifyPreRoute('Collaboration and kindness are deeply woven into the DNA of our culture.');
+  const metaphorDnaRes = classifyPreRoute('Collaboration and kindness are deeply woven into the DNA of our culture.', { preset: 'structure+lexical' });
   assert.equal(metaphorDnaRes.isFastPath, false);
   assert.equal(metaphorDnaRes.role, undefined);
 
-  const bioDnaRes = classifyPreRoute('Explain how CRISPR-Cas9 induces double-strand DNA breaks.');
+  const bioDnaRes = classifyPreRoute('Explain how CRISPR-Cas9 induces double-strand DNA breaks.', { preset: 'structure+lexical' });
   assert.equal(bioDnaRes.isFastPath, true);
   assert.equal(bioDnaRes.role, 'factual_stem');
 });
@@ -366,7 +409,7 @@ D. Paternalistic`;
 // 15. Safety: Large Payload Bounded Scanning
 test('classifyPreRoute - large payloads (>10KB) evaluate safely without latency regression or ReDoS', () => {
   const filler = 'The quick brown fox jumps over the lazy dog. '.repeat(400);
-  const largePrompt = `Write a Python function to compute Fibonacci numbers.\n${filler}`;
+  const largePrompt = `\`\`\`python\ndef fib(n):\n    return n\n\`\`\`\n${filler}`;
   
   const start = performance.now();
   const res = classifyPreRoute(largePrompt);
@@ -400,7 +443,7 @@ test('createPreRouter - supports custom domain role taxonomies and overrides', (
 
 // 17. Code-over-Games Precedence
 test('classifyPreRoute - code-over-games precedence, tightened chess/JSON/fences', () => {
-  const pythonPgn = classifyPreRoute('Write a Python script to parse a chess PGN and validate legal moves.');
+  const pythonPgn = classifyPreRoute('Write a Python script to parse a chess PGN and validate legal moves.', { preset: 'structure+lexical' });
   assert.equal(pythonPgn.isFastPath, true);
   assert.equal(pythonPgn.role, 'code');
   assert.equal(pythonPgn.reason, 'code_syntax');
@@ -454,12 +497,26 @@ test('classifyPreRoute - clinical medicine and pharmacology trigger deny list an
 
 // 20. Total Precedence Invariant Test (deny > custom > anchors > keywords > miss)
 test('classifyPreRoute - total precedence invariant: deny > custom > anchors > keywords > miss', () => {
-  // 1. Deny beats code fence
-  const codeFenceClinical = '```python\n# Calculate pediatric dosage of vancomycin for acute infection\ndef dose(weight):\n    return weight * 15\n```';
-  const denyFenceRes = classifyPreRoute(codeFenceClinical);
-  assert.equal(denyFenceRes.isFastPath, false, 'Deny must override code fence');
-  assert.equal(denyFenceRes.reason, 'deny');
-  assert.equal(denyFenceRes.ruleId, 'deny:pharmacology_dosing');
+  // 1a. Deny beats Python code fence with dosing
+  const codeFencePharma = '```python\n# Calculate pediatric dosage of vancomycin for acute infection\ndef dose(weight):\n    return weight * 15\n```';
+  const denyPharmaRes = classifyPreRoute(codeFencePharma);
+  assert.equal(denyPharmaRes.isFastPath, false, 'Deny must override code fence with pharmacology');
+  assert.equal(denyPharmaRes.reason, 'deny');
+  assert.equal(denyPharmaRes.ruleId, 'deny:pharmacology_dosing');
+
+  // 1b. Deny beats TypeScript code fence with cardiac clinical emergency
+  const codeFenceEmergency = '```typescript\n// Patient presents with sudden severe crushing chest pain\nfunction triagePatient() { return "critical"; }\n```';
+  const denyEmergencyRes = classifyPreRoute(codeFenceEmergency);
+  assert.equal(denyEmergencyRes.isFastPath, false, 'Deny must override code fence containing emergency');
+  assert.equal(denyEmergencyRes.reason, 'deny');
+  assert.equal(denyEmergencyRes.ruleId, 'deny:clinical_emergency');
+
+  // 1c. Deny beats SQL DDL/DML with legal directives
+  const sqlLegal = 'SELECT * FROM complaints; -- should I sue my former employer and evaluate my legal liability under statute';
+  const denySqlRes = classifyPreRoute(sqlLegal);
+  assert.equal(denySqlRes.isFastPath, false, 'Deny must override SQL code token');
+  assert.equal(denySqlRes.reason, 'deny');
+  assert.equal(denySqlRes.ruleId, 'deny:legal_counsel');
 
   // 2. Deny beats custom rule
   const customPharmaRouter = createPreRouter({
@@ -484,7 +541,7 @@ test('classifyPreRoute - total precedence invariant: deny > custom > anchors > k
 
   // 4. Syntactic Anchor beats keywords
   const anchorPlusKeywordPrompt = 'Translate this document and calculate \\frac{15}{3} + \\sqrt{81}';
-  const anchorBeatsKeyword = classifyPreRoute(anchorPlusKeywordPrompt, { preset: 'anchors+keywords' });
+  const anchorBeatsKeyword = classifyPreRoute(anchorPlusKeywordPrompt, { preset: 'all' });
   assert.equal(anchorBeatsKeyword.isFastPath, true);
   assert.equal(anchorBeatsKeyword.role, 'factual_stem');
   assert.equal(anchorBeatsKeyword.reason, 'latex');
@@ -492,10 +549,11 @@ test('classifyPreRoute - total precedence invariant: deny > custom > anchors > k
 
 // 21. Message-Aware Scope (last_user turn vs all turns)
 test('classifyPreRoute - message-aware scoping prevents tool noise from causing false positives', () => {
-  // Conversation where user asks a casual question, but previous assistant/tool output had a stack trace
+  // Conversation where user asks a casual question, but previous assistant/tool output had a stack trace and code fence
   const conversation = [
+    { role: 'system', content: 'You are a helpful programming assistant.' },
     { role: 'user', content: 'Can you help me format this text?' },
-    { role: 'assistant', content: 'I tried but hit an internal server error.' },
+    { role: 'assistant', content: '```python\ndef buggy(): pass\n```\nI tried but hit an internal error.' },
     { role: 'tool', content: 'Traceback (most recent call last):\nTypeError: Cannot read properties of undefined' },
     { role: 'user', content: 'No problem, what is the best Italian restaurant in town?' }
   ];
@@ -506,15 +564,14 @@ test('classifyPreRoute - message-aware scoping prevents tool noise from causing 
   assert.equal(scopedRes.role, undefined);
   assert.equal(scopedRes.reason, 'miss');
 
-  // Under explicit 'all' scope, tool stack trace triggers code
+  // Under explicit 'all' scope, tool stack trace / code fence triggers code
   const allTurnRes = classifyPreRoute(conversation, { messageScope: 'all' });
   assert.equal(allTurnRes.isFastPath, true);
   assert.equal(allTurnRes.role, 'code');
-  assert.equal(allTurnRes.reason, 'stack_trace');
 });
 
-// 22. Pluggable CacheAdapter Composition (Redis / KV mock)
-test('createPreRouter - pluggable CacheAdapter integration', () => {
+// 22. Pluggable CacheAdapter Composition (Sync)
+test('createPreRouter - pluggable CacheAdapter sync integration', () => {
   const storage = new Map();
   const customAdapter = {
     get: (key) => storage.get(key),
@@ -541,14 +598,73 @@ test('createPreRouter - pluggable CacheAdapter integration', () => {
   assert.equal(storage.size, 0);
 });
 
-// 23. Worst-Case Bounded Regex Catalog Execution Budget (<2ms per pattern)
+// 23. Pluggable CacheAdapter Composition (Async with classifyAsync)
+test('createPreRouter - async CacheAdapter integration with classifyAsync', async () => {
+  const remoteStore = new Map();
+  let remoteGetCalls = 0;
+  let remoteSetCalls = 0;
+
+  const asyncRedisMock = {
+    async get(key) {
+      remoteGetCalls++;
+      await new Promise(r => setTimeout(r, 2));
+      return remoteStore.get(key);
+    },
+    async set(key, val) {
+      remoteSetCalls++;
+      await new Promise(r => setTimeout(r, 2));
+      remoteStore.set(key, val);
+    },
+    async has(key) {
+      return remoteStore.has(key);
+    },
+    async clear() {
+      remoteStore.clear();
+    }
+  };
+
+  const router = createPreRouter({ adapter: asyncRedisMock });
+  const query = 'SELECT count(*) FROM orders;';
+
+  // 1. First call to classifyAsync -> misses remote, runs cold classifier, sets remote
+  const res1 = await router.classifyAsync(query);
+  assert.equal(res1.isFastPath, true);
+  assert.equal(res1.role, 'code');
+  assert.equal(remoteGetCalls, 1);
+  assert.equal(remoteSetCalls, 1);
+  assert.equal(remoteStore.size, 1);
+
+  // 2. Second call to classifyAsync -> hits in-memory LRU cache (0 remote calls!)
+  const res2 = await router.classifyAsync(query);
+  assert.deepEqual(res1, res2);
+  assert.equal(remoteGetCalls, 1, 'In-process cache should serve 2nd call without hitting remote adapter');
+
+  // 3. Clear in-process cache only, call classifyAsync -> hits remote adapter and re-hydrates in-process cache
+  router.cache?.clear();
+  const res3 = await router.classifyAsync(query);
+  assert.deepEqual(res1, res3);
+  assert.equal(remoteGetCalls, 2, 'Remote adapter hit after in-process eviction');
+  assert.ok(router.cache?.has(query), 'In-process LRU cache should be re-hydrated after remote adapter hit');
+
+  // 4. Synchronous classify does not hang on Promise, falls through safely
+  const resSync = router.classify(query);
+  assert.equal(resSync.isFastPath, true);
+
+  // 5. Clear all
+  await router.clearCache();
+  assert.equal(remoteStore.size, 0);
+  assert.equal(router.cache?.size, 0);
+});
+
+// 24. Worst-Case Bounded Regex Catalog Execution Budget (<2ms per pattern)
 test('catalog - every pattern in catalog executes in < 2ms on worst-case 8KB adversarial input', () => {
   // Construct worst-case backtracking adversarial strings
   const evilWhitespace = 'a'.repeat(4000) + ' '.repeat(4000);
-  const evilBackticks = '```'.repeat(1000);
-  const evilBrackets = '{[('.repeat(1000);
+  const evilBackticks = '```'.repeat(2700);
+  const evilUnclosedFence = '```python\n' + 'const a = 1;\n'.repeat(500);
+  const evilBrackets = '{[('.repeat(1000) + '\n'.repeat(500);
 
-  const adversarialInputs = [evilWhitespace, evilBackticks, evilBrackets];
+  const adversarialInputs = [evilWhitespace, evilBackticks, evilUnclosedFence, evilBrackets];
 
   for (const rule of RULE_CATALOG) {
     for (const pattern of rule.patterns) {

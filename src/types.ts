@@ -39,7 +39,12 @@ export type PreRouteReason =
   | 'closed_world'
   | 'miss';
 
-export type RulePreset = 'anchors-only' | 'anchors+keywords';
+export type RulePreset = 
+  | 'structure'            // Default: pure structural syntax only (fences, SQL, LaTeX, stack traces, FEN/PGN)
+  | 'structure+lexical'    // Structure + domain technical phrases & collocations
+  | 'all'                  // Full recall: structure + lexical + keywords/trivia
+  | 'anchors-only'         // Backward-compatible alias for 'structure+lexical'
+  | 'anchors+keywords';    // Backward-compatible alias for 'all'
 
 export type MessageScope = 'last_user' | 'all';
 
@@ -63,13 +68,13 @@ export interface PreRouteResult<TRole extends string = string> {
 }
 
 export interface ClassifierOptions<TRole extends string = string> {
-  preset?: RulePreset; // Default: 'anchors-only'
+  preset?: RulePreset; // Default: 'structure' (pure syntactic structures)
   messageScope?: MessageScope; // Default: 'last_user'
   lengthThreshold?: number; // String length, not tokens, for speed. Default 2000.
   customRules?: RegExp[]; // Custom Regex patterns to mark a prompt as complex
   customSpecialistRules?: CustomSpecialistRule<TRole>[]; // Custom regex overrides for specialist routing
   prunePreRouting?: boolean; // If true, clean conversational filler and whitespace before length evaluation
-  knowledgeBoundaryGating?: boolean; // If true, evaluate closed-world queries (only in anchors+keywords or detection)
+  knowledgeBoundaryGating?: boolean; // If true, evaluate closed-world queries (only in 'all' or detection)
 }
 
 export type CachePolicy = 'hits' | 'all';
@@ -85,6 +90,8 @@ export interface CacheOptions {
 /**
  * Pluggable Cache Adapter Interface for external stores (Redis, Cloudflare KV, Memcached).
  * Allows composing remote/distributed memoization without forking PreRouteCache.
+ * Note: Distributed remote cache lookup requiring network I/O should be queried
+ * via `router.classifyAsync()`. Synchronous `router.classify()` uses in-process LRU cache.
  */
 export interface CacheAdapter<TRole extends string = SpecialistRole> {
   get(key: string): PreRouteResult<TRole> | undefined | Promise<PreRouteResult<TRole> | undefined>;
@@ -115,14 +122,20 @@ export interface PreRouterOptions<TRole extends string = SpecialistRole> extends
   adapter?: CacheAdapter<TRole>;
   onRoute?: (telemetry: RouteTelemetry<TRole>) => void;
   sampleRate?: number; // Telemetry sampling rate between 0.0 and 1.0 (default 1.0)
-  includeFullPrompt?: boolean; // If false (default), telemetry truncates/redacts prompt to avoid PII leak
+  /**
+   * If false (default), telemetry truncates prompt to a 100-character snippet.
+   * NOTE: Snippet truncation mitigates accidental bulk prompt dumps into logging sinks,
+   * but is NOT PII-proof or HIPAA-compliant sanitization (identifiers may occur in the first 100 chars).
+   */
+  includeFullPrompt?: boolean;
 }
 
 export interface PreRouter<TRole extends string = SpecialistRole> {
   classify(messages: Message[] | string): PreRouteResult<TRole>;
+  classifyAsync(messages: Message[] | string): Promise<PreRouteResult<TRole>>;
   cache: PreRouteCache<TRole> | null;
   adapter?: CacheAdapter<TRole>;
-  clearCache(): void;
+  clearCache(): void | Promise<void>;
 }
 
 // Re-export PreRouteCache type signature for PreRouter

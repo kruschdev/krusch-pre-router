@@ -51,7 +51,7 @@ export class PreRouteCache<TRole extends string = SpecialistRole> {
     this._namespace = options?.namespace;
     this._cachePolicy = options?.cachePolicy ?? 'hits';
     this._rulesVersion = options?.rulesVersion ?? RULES_VERSION;
-    this._preset = options?.preset ?? 'anchors-only';
+    this._preset = options?.preset ?? 'structure';
     this._ttlMs = options?.ttlMs;
     this.cache = new Map();
   }
@@ -170,8 +170,8 @@ export class PreRouteCache<TRole extends string = SpecialistRole> {
 export function createPreRouter<TRole extends string = SpecialistRole>(
   options?: PreRouterOptions<TRole>
 ): PreRouter<TRole> {
-  const enableCache = options?.cache !== false && !options?.adapter;
-  const preset: RulePreset = options?.preset ?? 'anchors-only';
+  const enableCache = options?.cache !== false;
+  const preset: RulePreset = options?.preset ?? 'structure';
   const cachePolicy: CachePolicy = options?.cachePolicy ?? (
     typeof options?.cache === 'object' && options.cache.cachePolicy ? options.cache.cachePolicy : 'hits'
   );
@@ -241,7 +241,7 @@ export function createPreRouter<TRole extends string = SpecialistRole>(
         }
       }
 
-      // 2. Check external cache adapter (sync or async result handling)
+      // 2. Check external cache adapter (sync handling only; remote async requires classifyAsync)
       if (adapter) {
         const key = Array.isArray(messages)
           ? messages.map(m => `${m.role}:${m.content}`).join('\n')
@@ -252,6 +252,9 @@ export function createPreRouter<TRole extends string = SpecialistRole>(
           if (adapterResult && typeof (adapterResult as any).then !== 'function') {
             const syncResult = adapterResult as PreRouteResult<TRole>;
             if (syncResult) {
+              if (cache) {
+                cache.set(messages, syncResult);
+              }
               dispatchTelemetry(messages, syncResult, true);
               return {
                 ...syncResult,
@@ -291,9 +294,76 @@ export function createPreRouter<TRole extends string = SpecialistRole>(
         scanWindowUsed: { ...result.scanWindowUsed }
       };
     },
-    clearCache(): void {
+    async classifyAsync(messages: Message[] | string): Promise<PreRouteResult<TRole>> {
+      // 1. Check in-process LRU cache (0 network I/O)
+      if (cache) {
+        const cached = cache.get(messages);
+        if (cached) {
+          dispatchTelemetry(messages, cached, true);
+          return cached;
+        }
+      }
+
+      // 2. Check external cache adapter (awaiting remote Promise)
+      if (adapter) {
+        const key = Array.isArray(messages)
+          ? messages.map(m => `${m.role}:${m.content}`).join('\n')
+          : messages;
+
+        try {
+          const adapterResult = await adapter.get(key);
+          if (adapterResult) {
+            const hitResult: PreRouteResult<TRole> = {
+              ...adapterResult,
+              scanWindowUsed: { ...adapterResult.scanWindowUsed }
+            };
+            // Populate in-process LRU cache
+            if (cache) {
+              cache.set(messages, hitResult);
+            }
+            dispatchTelemetry(messages, hitResult, true);
+            return hitResult;
+          }
+        } catch {
+          // Swallow adapter errors and fall through to cold classification
+        }
+      }
+
+      // 3. Cold syntactic classification
+      const result = classifyPreRoute(messages, options);
+
+      // 4. Memoize according to cachePolicy
+      if (cache) {
+        cache.set(messages, result);
+      }
+
+      if (adapter && (cachePolicy === 'all' || result.isFastPath)) {
+        const key = Array.isArray(messages)
+          ? messages.map(m => `${m.role}:${m.content}`).join('\n')
+          : messages;
+        try {
+          await adapter.set(key, result);
+        } catch {
+          // Swallow adapter store errors
+        }
+      }
+
+      // 5. Emit non-blocking telemetry
+      dispatchTelemetry(messages, result, false);
+
+      return {
+        ...result,
+        scanWindowUsed: { ...result.scanWindowUsed }
+      };
+    },
+    clearCache(): void | Promise<void> {
       cache?.clear();
-      adapter?.clear?.();
+      if (adapter?.clear) {
+        const res = adapter.clear();
+        if (res && typeof (res as any).then === 'function') {
+          return res;
+        }
+      }
     }
   };
 }
