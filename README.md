@@ -45,16 +45,15 @@
     isFastPath: true                         isFastPath: false (role: undefined)
               │                                        │
               ▼                                        ▼
-    ┌───────────────────┐                 ┌─────────────────────────┐
-    │ Direct Specialist │                 │  Stage 1: L2 Classifier │
-    │ (e.g. Qwen-Coder, │                 │  (RouteLLM, NotDiamond, │
-    │  DeepSeek-Math)   │                 │   Frontier Guardrails)  │
-    └───────────────────┘                 └────────────┬────────────┘
-                                                       │
-                                                       ▼
-                                          ┌─────────────────────────┐
-                                          │     Frontier Route      │
-                                          └─────────────────────────┘
+    ┌───────────────────────────────────┐    ┌───────────────────────────────────┐
+    │         Direct Specialist         │    │      Stage 1: L2 Classifier       │
+    │   (your code / SQL / math model)  │    │  (RouteLLM, NotDiamond, frontier) │
+    └───────────────────────────────────┘    └─────────────────┬─────────────────┘
+                                                               │
+                                                               ▼
+                                                     ┌───────────────────┐
+                                                     │  Frontier Route   │
+                                                     └───────────────────┘
 ```
 
 ---
@@ -120,6 +119,7 @@ deny (0) > custom (10) > structure (20-24) > lexical (30-34) > keywords (40-50) 
 * **Code-over-Games Invariant**: Programming instructions involving chess (e.g., *"Write a Python script to parse a chess PGN"*) route to `code`, never `games_spatial`.
 
 ### 3. Hits-Only Memoization (No Miss Lock-in)
+Exact-match LRU memoization of whitespace-normalized strings. Not a semantic cache. Hits-only by default; keys include `rulesVersion` and `preset`.
 * `PreRouteCache` defaults to **`cachePolicy: 'hits'`**: Only fast-pathed queries (`isFastPath: true`) are memoized.
 * Cache keys automatically prefix the rule version and preset: `[v${rulesVersion}:${preset}][${namespace}]${key}`, ensuring that rule deployments immediately invalidate previous memoized entries.
 
@@ -184,7 +184,7 @@ const redisAdapter: CacheAdapter = {
 
 const router = createPreRouter({ adapter: redisAdapter });
 
-// classifyAsync checks L1 in-process LRU -> awaits L2 Redis -> runs cold classifier -> re-hydrates L1
+// classifyAsync checks in-process LRU -> awaits distributed Redis -> runs cold classifier -> re-hydrates LRU
 const route = await router.classifyAsync('SELECT * FROM users;');
 ```
 
@@ -201,7 +201,7 @@ console.log(result);
 //   isFastPath: true,
 //   role: 'code',
 //   confidence: 'high',
-//   complexityScore: 0.20,
+//   complexityScore: 0.20, // payload density heuristic, not cognitive complexity
 //   suggestedAction: 'dispatch_specialist',
 //   reason: 'fence',
 //   ruleId: 'structure:code_fence',
@@ -215,7 +215,7 @@ console.log(clinicalDeny);
 //   isFastPath: false,
 //   role: undefined,
 //   confidence: 'unstructured',
-//   complexityScore: 0.20,
+//   complexityScore: 0.20, // payload density heuristic, not cognitive complexity
 //   suggestedAction: 'delegate_to_l2',
 //   reason: 'deny',
 //   ruleId: 'deny:pharmacology_dosing',
@@ -312,8 +312,11 @@ npm run bench
 | **Cold Regex Heuristic** (`classifyPreRoute`) | Full priority-ordered CPU regex stack scan | **4.32 µs** | **3.51 µs** | 6.34 µs | 13.97 µs | **~220,000 ops/sec** |
 | **Warm LRU Memo Hit** (`router.classify`) | In-memory Map lookup + defensive clone (Hits only) | **5.45 µs** | **4.65 µs** | 9.66 µs | 17.03 µs | **~180,000 ops/sec** |
 
-### Test Suite Coverage (32/32 tests passing):
-* **Calibrated Fixtures (100 prompts)**: 100.0% pass rate on domain regression suite (`structure+lexical`).
+### Golden Invariant Suite (32/32 tests passing)
+
+100/100 and 0/115 are regression fixtures co-evolved with the rules. They are not an external generalization score. Calibrate with `npm run harvest:ood` on your logs.
+
+* **Calibrated Fixtures (100 prompts)**: 100/100 pass rate on domain regression suite (`structure+lexical`).
 * **Conservative Preset Isolation**: Proves that default `structure` preset cleanly yields conversational and ambiguous domain phrasings to L2.
 * **OOD Adversarial Traps (126 prompts)**: Clean L2 delegation rate: **100.0% (126/126)**, Wrong-Specialist Rate (FPR): **0.0%**.
 * **Deny ∩ Fence Guarantee**: Code fences containing clinical emergencies or pharmacology dosing strictly trigger `reason: 'deny'`, overriding code rules.

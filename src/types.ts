@@ -60,6 +60,11 @@ export interface PreRouteResult<TRole extends string = string> {
   isFastPath: boolean;
   role?: DefaultSpecialistRole | TRole;
   confidence: 'high' | 'borderline' | 'unstructured';
+  /**
+   * Syntactic payload-density heuristic in [0, 1].
+   * Combines prompt length, markup/JSON shape, and a small verb lexicon.
+   * Not cognitive hardness or reasoning depth; do not use as an autonomous spend gate.
+   */
   complexityScore: number;
   suggestedAction: 'dispatch_specialist' | 'delegate_to_l2';
   reason: PreRouteReason;

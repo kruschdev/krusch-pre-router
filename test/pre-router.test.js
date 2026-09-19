@@ -20,8 +20,14 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 1. L1 Fast-Path vs L2 Delegation Tests
+// 1. Stage-0 Fast-Path vs L2 Delegation Tests
 test('classifyPreRoute - Fast-Path Identification vs L2 Delegation', () => {
+  // Explicit golden check: natural language prompt must miss under default preset
+  assert.equal(
+    classifyPreRoute('Write a Python function to reverse a string.').isFastPath,
+    false
+  );
+
   // Pure structural syntax samples (active in default 'structure' preset)
   const structureSamples = [
     { query: '```python\ndef quicksort(arr): pass\n```', expectedRole: 'code', reason: 'fence' },

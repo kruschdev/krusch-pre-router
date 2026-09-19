@@ -306,7 +306,7 @@ test('Holdout Evaluation - Knowledge Boundary Gating on Closed-World Tasks', () 
   }
 });
 
-test('L1 Pre-Router - classifyPreRoute Fast-Path vs L2 Delegation', () => {
+test('Stage-0 Pre-Router - classifyPreRoute Fast-Path vs L2 Delegation', () => {
   // Pure structural syntax fast-paths under default 'structure' preset
   const structureSamples = [
     { query: '```python\ndef fib(n):\n    return n if n <= 1 else fib(n-1) + fib(n-2)\n```', expectedRole: 'code', reason: 'fence' },

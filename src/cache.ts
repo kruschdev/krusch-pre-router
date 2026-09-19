@@ -30,12 +30,9 @@ interface CacheEntry<TRole extends string> {
 }
 
 /**
- * High-performance, zero-dependency in-memory LRU memoization table for prompt classifications.
- * Provides sub-microsecond O(1) lookups for identical, whitespace-normalized prompts.
- *
- * Defaults:
- *   - cachePolicy: 'hits' (Only isFastPath: true results are cached; misses are never cached by default)
- *   - keyPrefix: Invalidation isolation across rulesVersion and preset
+ * Exact-match LRU memoization of whitespace-normalized strings. Not a semantic cache.
+ * Hits-only by default; keys include rulesVersion and preset.
+ * Provides sub-microsecond O(1) lookups for identical prompts.
  */
 export class PreRouteCache<TRole extends string = SpecialistRole> {
   private readonly maxSize: number;

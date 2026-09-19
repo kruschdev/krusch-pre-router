@@ -119,8 +119,11 @@ function extractPromptText(messages: Message[] | string, scope: MessageScope = '
 }
 
 /**
- * Continuous complexity scorer [0.0, 1.0].
- * Evaluates message length, analytical indicator verbs, and structural payload markers.
+ * Syntactic payload-density heuristic in [0, 1].
+ *
+ * Combines prompt length, markup/JSON shape, and a small verb lexicon.
+ * This is not cognitive hardness, intent, or an estimate of whether a
+ * frontier model is required. Do not use it as an autonomous spend gate.
  */
 export function evaluateComplexityScore(messages: Message[] | string, options?: ClassifierOptions): number {
   const lengthThreshold = options?.lengthThreshold || 2000;
@@ -167,7 +170,8 @@ export function evaluateComplexityScore(messages: Message[] | string, options?: 
 }
 
 /**
- * Fast syntactic heuristic to estimate if a prompt is "simple" or "complex".
+ * Fast syntactic heuristic to estimate prompt payload density.
+ * Returns true when payload density exceeds a threshold; not a reasoning detector.
  */
 export function isComplexPrompt(
   messages: Message[] | string,
