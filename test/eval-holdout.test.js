@@ -125,7 +125,7 @@ const HOLDOUT_DATASET = [
 
 // --- Tests ---
 
-test('Holdout Evaluation - 100+ Template-Free Prompts Domain Accuracy', () => {
+test('Holdout Evaluation - 100+ Syntactic Anchor Regression Fixtures', () => {
   let correct = 0;
   const misclassified = [];
   const domainStats = {};
@@ -159,14 +159,14 @@ test('Holdout Evaluation - 100+ Template-Free Prompts Domain Accuracy', () => {
 
   const elapsedMs = performance.now() - startTime;
   const avgUsPerPrompt = (elapsedMs / HOLDOUT_DATASET.length) * 1000;
-  const accuracy = (correct / HOLDOUT_DATASET.length) * 100;
+  const passRate = (correct / HOLDOUT_DATASET.length) * 100;
 
   console.log(`\n========================================`);
-  console.log(`🎯 Holdout Prompt Evaluation Results`);
+  console.log(`🎯 Syntactic Anchor Fixture Results`);
   console.log(`========================================`);
-  console.log(`Total Prompts Evaluated: ${HOLDOUT_DATASET.length}`);
-  console.log(`Overall Accuracy:        ${accuracy.toFixed(2)}% (${correct}/${HOLDOUT_DATASET.length})`);
-  console.log(`Average Latency:         ${avgUsPerPrompt.toFixed(2)} µs / prompt`);
+  console.log(`Total Prompts Evaluated:       ${HOLDOUT_DATASET.length}`);
+  console.log(`Syntactic Pass Rate (Regress): ${passRate.toFixed(2)}% (${correct}/${HOLDOUT_DATASET.length})`);
+  console.log(`Average CPU Gate Latency:      ${avgUsPerPrompt.toFixed(2)} µs / prompt`);
   console.log(`\n--- Per-Domain Performance ---`);
   for (const [domain, stats] of Object.entries(domainStats)) {
     const pct = ((stats.correct / stats.total) * 100).toFixed(1);
@@ -180,8 +180,8 @@ test('Holdout Evaluation - 100+ Template-Free Prompts Domain Accuracy', () => {
   }
   console.log(`========================================\n`);
 
-  // Assertions: Zero-template accuracy must exceed 90% and latency must be sub-millisecond (< 500 µs)
-  assert.ok(accuracy >= 90.0, `Holdout classification accuracy must be >= 90% (got ${accuracy.toFixed(2)}%)`);
+  // Assertions: Fixture regression pass rate must exceed 90% and latency must be sub-millisecond (< 500 µs)
+  assert.ok(passRate >= 90.0, `Syntactic anchor pass rate must be >= 90% (got ${passRate.toFixed(2)}%)`);
   assert.ok(avgUsPerPrompt < 500, `Average classification latency must be < 500 µs (got ${avgUsPerPrompt.toFixed(2)} µs)`);
 });
 

@@ -55,7 +55,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kruschdev/krusch-pre-router.git"
+    "url": "git+https://github.com/kruschdev/krusch-pre-router.git"
   },
   "bugs": {
     "url": "https://github.com/kruschdev/krusch-pre-router/issues"

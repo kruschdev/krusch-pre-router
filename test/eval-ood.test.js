@@ -57,7 +57,7 @@ test('OOD Evaluation - Measure Wrong-Specialist (False-Positive) Rate on Non-Hol
       console.log(`  ❌ [Triggered: ${m.falselyAssignedRole}] "${m.prompt}"`);
     }
   } else {
-    console.log(`\n✨ Perfect 0.0% False-Positive Rate across all ${OOD_DATASET.length} OOD/Adversarial prompts.`);
+    console.log(`\n✨ Clean 0.0% False-Positive Rate across all ${OOD_DATASET.length} OOD/Adversarial fixtures.`);
   }
   console.log(`========================================================\n`);
 
