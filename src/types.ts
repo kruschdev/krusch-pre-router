@@ -121,12 +121,24 @@ export interface RouteTelemetry<TRole extends string = SpecialistRole> {
   promptSnippet?: string;
 }
 
+export type PreRouterErrorContext = 'telemetry' | 'adapter_get' | 'adapter_set';
+
+export type PreRouteClassifier<TRole extends string = SpecialistRole> = (
+  messages: Message[] | string,
+  options?: ClassifierOptions<TRole>
+) => PreRouteResult<TRole>;
+
 export interface PreRouterOptions<TRole extends string = SpecialistRole> extends ClassifierOptions<TRole> {
   cache?: boolean | CacheOptions;
   namespace?: string;
   cachePolicy?: CachePolicy;
   adapter?: CacheAdapter<TRole>;
+  classifier?: PreRouteClassifier<TRole>;
   onRoute?: (telemetry: RouteTelemetry<TRole>) => void;
+  /**
+   * Optional non-blocking error observer for external cache adapter or telemetry listener failures.
+   */
+  onError?: (error: unknown, context: PreRouterErrorContext) => void;
   sampleRate?: number; // Telemetry sampling rate between 0.0 and 1.0 (default 1.0)
   /**
    * If false (default), telemetry truncates prompt to a 100-character snippet.

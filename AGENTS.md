@@ -1,66 +1,42 @@
-# AGENTS.md — krusch-pre-router
+# Krusch Pre-Router — Agent Operating Manual (`AGENTS.md`)
 
-> Deterministic Stage-0 Syntactic Gate & Exact-Match LRU Memoization Table for LLM Swarms.
-> Zero runtime dependencies. <10KB gzipped (<35KB raw) bundle size. Microsecond CPU classification & LRU memoization. $0.00 routing tax.
-
----
-
-## 🧠 Sovereign Context Protocol (`krusch-context-mcp`)
-
-This project is indexed by and integrated with **`krusch-context-mcp`** for cross-session working memory, AST symbol grounding, and persistent steering conventions.
-
-### Standard Tool Calling Lifecycle
-
-#### 1. At Start of Work / New Session
-Call `krusch_context_retrieve` with `include_state: true` to hydrate project state alongside codebase context in a single turn:
-```javascript
-krusch_context_retrieve({
-  query: "<task or technical topic>",
-  include_state: true,
-  graph_hops: 2,
-  limit_tokens: 3500,
-  include_code: true
-});
-```
-Or view the compiled state briefing standalone (project is auto-detected):
-```javascript
-krusch_context_compile_state({});
-```
-
-#### 2. Before Non-Trivial Code Modifications
-- Check project conventions and steering nuggets:
-  ```javascript
-  krusch_context_nugget_nudges({ query: "<task context>" });
-  ```
-- Inspect symbol callers and references using `krusch_context_search_symbols` or `krusch_context_symbol_graph`.
-
-#### 3. When Facts, Benchmarks, or Architecture Change
-- **New Milestones / Out-of-Distribution Evals**: Call `krusch_context_add_memory({ category: "outcomes", content: "...", project: "krusch-pre-router" })`.
-- **Architectural Conventions**: Call `krusch_context_nugget_remember({ key: "<slug>", value: "...", kind: "project", project: "krusch-pre-router" })`.
-- **Superseded Decisions**: Call `krusch_context_supersede_memory({ id: <old_id>, content: "<new_truth>" })`.
-
-#### 4. Refreshing AST Codebase Snapshot
-Whenever code or test files change:
-```bash
-node /home/krusch/homelab/projects/krusch-context-mcp/scripts/snapshot.js /home/krusch/homelab/projects/krusch-pre-router
-```
+> **Core Role**: Deterministic Stage-0 Syntactic Gate & Exact-Match LRU Memoization Table (`projects/krusch-pre-router`). Zero runtime dependencies, `<10 KB` gzipped (`<35 KB` raw), microsecond CPU classification (`<15µs`), `$0.00` routing tax.
 
 ---
 
-## 🛠️ Build, Test & Benchmark Commands
+## 🛠️ 3-Tier MCP Integration
 
-- **Build**: `npm run build` (tsup generates ESM and CJS bundles in `dist/`)
+1. **Session Start (`krusch-context-mcp`)**:
+   ```javascript
+   krusch_context_retrieve({ query: "pre-router fast path cache ood", include_state: true, limit_tokens: 3500 });
+   ```
+2. **AST Blast Radius (`krusch-git`)**:
+   - Inspect symbol definitions and inbound callers before modifying exports:
+     `krusch_git_search_symbols({ repo: "krusch-pre-router", query: "<symbol>" })`
+     `krusch_git_dependency_graph({ repo: "krusch-pre-router", symbol: "<symbol>" })`
+   - Re-index after code changes:
+     `cd ../krusch-git && SKIP_LLM_SUMMARY=true node scripts/sync_to_pg.js ../krusch-pre-router`
+3. **Pre-Commit Audit & Memory Lineage (`krusch-context-mcp`)**:
+   - Audit diffs before committing: `krusch_context_nudge({ trigger: "pre_commit", code: "<diff>" })`
+   - Persist new benchmarks or invariants: `krusch_context_remember({ category: "decision|invariant|lesson", content: "..." })`
+   - Supersede obsolete rules: `krusch_context_revise({ action: "supersede", target_id: <id>, new_content: "...", reason: "..." })`
+
+---
+
+## ⚡ Build, Test & Benchmark Commands
+
+- **Build**: `npm run build` (`tsup` generates ESM and CJS bundles in `dist/`)
 - **Test**: `npm test` (Runs all 17 unit, holdout, and OOD wrong-specialist evaluation suites)
-- **Benchmark**: `npm run bench` (Microsecond benchmark with hardware telemetry and percentile latencies)
-- **Harvest OOD**: `npm run harvest:ood -- <path-to-logs.jsonl>` (Harvests Stage-0 false-positive traps from production logs into `ood-prompts.json`)
+- **Benchmark**: `npm run bench` (Microsecond CPU benchmark with percentile latencies)
+- **Harvest OOD**: `npm run harvest:ood -- <path-to-logs.jsonl>` (Harvests Stage-0 false-positive traps from logs into `ood-prompts.json`)
 
 ---
 
-## 📌 Core Invariants
+## 📌 Core Invariants (`INV-PR-01` – `INV-PR-06`)
 
-1. **Miss Semantics**: Prompts lacking deterministic domain signals MUST return `isFastPath: false` and `role: undefined`. Never fallback to `'factual_stem'` or any specialist role.
-2. **Defensive Cloning**: `PreRouteCache` and `createPreRouter` must clone results on `get()` and `set()` so caller mutations do not corrupt cached results.
-3. **Key Normalization**: `PreRouteCache.normalizeKey()` handles both `string` and `Message[]`. For `Message[]`, it preserves message roles (`${role}:${content}`) to prevent conversation collisions.
-4. **Cache Isolation**: `PreRouteCache` supports an optional `namespace` prefix to prevent collisions when multiple routers or tenant profiles share a cache instance.
-5. **Telemetry Resilience**: `onRoute` telemetry callbacks are non-blocking and isolated in `try/catch` so logger/disk failures never disrupt prompt classification.
-6. **Local Lakebase Storage**: Per-project SQLite memory is located at `.agent/memory.db` and is ignored by git.
+1. **Miss Semantics (`INV-PR-01`)**: Prompts lacking deterministic domain signals MUST return `isFastPath: false` and `role: undefined`. Never fall back to `'factual_stem'` or any specialist role on an ambiguous miss.
+2. **Defensive Cloning (`INV-PR-02`)**: `PreRouteCache` and `createPreRouter` must clone results on `get()` and `set()` so caller mutations never corrupt cached entries.
+3. **Key Normalization (`INV-PR-03`)**: `PreRouteCache.normalizeKey()` handles both `string` and `Message[]`, preserving message roles (`${role}:${content}`) to prevent conversation collisions.
+4. **Cache Isolation (`INV-PR-04`)**: `PreRouteCache` supports an optional `namespace` prefix to prevent collisions across multi-tenant router instances.
+5. **Telemetry Resilience (`INV-PR-05`)**: `onRoute` telemetry callbacks are non-blocking and wrapped in `try/catch` so logger/disk failures never disrupt classification.
+6. **Local Context Store (`INV-PR-06`)**: Per-project SQLite working memory resides at `.agent/context.db` (gitignored).

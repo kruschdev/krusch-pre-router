@@ -221,6 +221,20 @@ test('createPreRouter - Stateful cached routing wrapper', () => {
   assert.equal(nlRes1.isFastPath, true);
   assert.equal(nlRes1.role, 'code');
   assert.ok(lexicalRouter.cache?.has(nlQuery));
+
+  // TYPE-01: Runtime validation for invalid preset, cachePolicy, and cache.maxSize
+  assert.throws(
+    () => createPreRouter({ preset: 'invalid-preset' }),
+    /Invalid PreRouterOptions: preset must be one of/
+  );
+  assert.throws(
+    () => createPreRouter({ cachePolicy: 'invalid-policy' }),
+    /Invalid PreRouterOptions: cachePolicy must be one of/
+  );
+  assert.throws(
+    () => createPreRouter({ cache: { maxSize: 0 } }),
+    /Invalid PreRouterOptions: cache\.maxSize must be a positive integer/
+  );
 });
 
 // 6. classifySpecialistRole Miss Behavior
@@ -695,3 +709,48 @@ test('catalog - every pattern in catalog executes in < 2ms on worst-case 8KB adv
     }
   }
 });
+
+// 25. Error Observability Hook (onError) for Adapter & Telemetry Failures
+test('createPreRouter - onError observes adapter_get, adapter_set, and telemetry errors without disrupting classification', async () => {
+  const observed = [];
+  const failingAdapter = {
+    get() {
+      throw new Error('simulated adapter get failure');
+    },
+    set() {
+      throw new Error('simulated adapter set failure');
+    },
+    has() {
+      return false;
+    }
+  };
+
+  const router = createPreRouter({
+    cache: false,
+    adapter: failingAdapter,
+    onRoute() {
+      throw new Error('simulated telemetry listener failure');
+    },
+    onError(err, context) {
+      observed.push({ context, message: err.message });
+    }
+  });
+
+  const syncRes = router.classify('```js\nconst x = 1;\n```');
+  assert.equal(syncRes.isFastPath, true);
+  assert.equal(syncRes.role, 'code');
+  assert.deepEqual(
+    observed.map(o => o.context),
+    ['adapter_get', 'adapter_set', 'telemetry']
+  );
+
+  observed.length = 0;
+  const asyncRes = await router.classifyAsync('```python\ndef foo(): pass\n```');
+  assert.equal(asyncRes.isFastPath, true);
+  assert.equal(asyncRes.role, 'code');
+  assert.deepEqual(
+    observed.map(o => o.context),
+    ['adapter_get', 'adapter_set', 'telemetry']
+  );
+});
+

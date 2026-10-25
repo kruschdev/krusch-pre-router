@@ -4,3 +4,5 @@ dist/
 *.log
 examples/*.jsonl
 .agent/
+*INFLIGHT*.md
+scratch/

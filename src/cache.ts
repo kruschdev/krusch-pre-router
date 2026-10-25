@@ -29,6 +29,16 @@ interface CacheEntry<TRole extends string> {
   expiresAt?: number;
 }
 
+const ALLOWED_CACHE_POLICIES: readonly CachePolicy[] = ['hits', 'all'];
+const ALLOWED_RULE_PRESETS: readonly RulePreset[] = [
+  'structure',
+  'structure+lexical',
+  'structure+lexical+keywords',
+  'all',
+  'anchors-only',
+  'anchors+keywords'
+];
+
 /**
  * Exact-match LRU memoization of whitespace-normalized strings. Not a semantic cache.
  * Hits-only by default; keys include rulesVersion and preset.
@@ -43,13 +53,40 @@ export class PreRouteCache<TRole extends string = SpecialistRole> {
   private readonly _ttlMs?: number;
   private readonly cache: Map<string, CacheEntry<TRole>>;
 
+  /**
+   * @param options Optional cache configuration:
+   *  - `maxSize`: positive integer maximum LRU capacity (default: 1000)
+   *  - `namespace`: alphanumeric/underscore/hyphen key isolation prefix
+   *  - `cachePolicy`: `'hits' | 'all'` (default: `'hits'`)
+   *  - `rulesVersion`: non-negative integer rules catalog version
+   *  - `preset`: one of `'structure' | 'structure+lexical' | 'structure+lexical+keywords' | 'all' | 'anchors-only' | 'anchors+keywords'`
+   *  - `ttlMs`: positive integer TTL in milliseconds
+   */
   constructor(options?: CacheOptions & { preset?: RulePreset }) {
     this.maxSize = options?.maxSize ?? 1000;
+    if (!Number.isInteger(this.maxSize) || this.maxSize <= 0) {
+      throw new Error('maxSize must be a positive integer');
+    }
     this._namespace = options?.namespace;
+    if (this._namespace !== undefined && !/^[a-zA-Z0-9_-]+$/.test(this._namespace)) {
+      throw new Error('Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/');
+    }
     this._cachePolicy = options?.cachePolicy ?? 'hits';
+    if (!ALLOWED_CACHE_POLICIES.includes(this._cachePolicy)) {
+      throw new Error('Invalid cachePolicy value');
+    }
     this._rulesVersion = options?.rulesVersion ?? RULES_VERSION;
+    if (!Number.isInteger(this._rulesVersion) || this._rulesVersion < 0) {
+      throw new Error('Invalid rulesVersion value');
+    }
     this._preset = options?.preset ?? 'structure';
+    if (!ALLOWED_RULE_PRESETS.includes(this._preset)) {
+      throw new Error('Invalid preset value');
+    }
     this._ttlMs = options?.ttlMs;
+    if (this._ttlMs !== undefined && (!Number.isInteger(this._ttlMs) || this._ttlMs <= 0)) {
+      throw new Error('Invalid ttlMs value: must be a positive integer');
+    }
     this.cache = new Map();
   }
 
@@ -160,6 +197,62 @@ export class PreRouteCache<TRole extends string = SpecialistRole> {
   }
 }
 
+function validatePreRouterOptions<TRole extends string = SpecialistRole>(
+  opts?: PreRouterOptions<TRole>
+): void {
+  if (!opts) return;
+  if (opts.preset !== undefined && !ALLOWED_RULE_PRESETS.includes(opts.preset)) {
+    throw new Error(
+      `Invalid PreRouterOptions: preset must be one of ${ALLOWED_RULE_PRESETS.join(', ')}`
+    );
+  }
+  if (opts.cachePolicy !== undefined && !ALLOWED_CACHE_POLICIES.includes(opts.cachePolicy)) {
+    throw new Error(
+      `Invalid PreRouterOptions: cachePolicy must be one of ${ALLOWED_CACHE_POLICIES.join(', ')}`
+    );
+  }
+  if (typeof opts.cache === 'object' && opts.cache !== null) {
+    if (opts.cache.cachePolicy !== undefined && !ALLOWED_CACHE_POLICIES.includes(opts.cache.cachePolicy)) {
+      throw new Error(
+        `Invalid PreRouterOptions: cache.cachePolicy must be one of ${ALLOWED_CACHE_POLICIES.join(', ')}`
+      );
+    }
+    if (
+      opts.cache.maxSize !== undefined &&
+      (!Number.isInteger(opts.cache.maxSize) || opts.cache.maxSize <= 0)
+    ) {
+      throw new Error('Invalid PreRouterOptions: cache.maxSize must be a positive integer');
+    }
+  }
+}
+
+export function buildCache<TRole extends string = SpecialistRole>(
+  options?: PreRouterOptions<TRole>
+): { cache: PreRouteCache<TRole> | null; cachePolicy: CachePolicy; preset: RulePreset } {
+  const enableCache = options?.cache !== false;
+  const preset: RulePreset = options?.preset ?? 'structure';
+  const cachePolicy: CachePolicy = options?.cachePolicy ?? (
+    typeof options?.cache === 'object' && options.cache.cachePolicy ? options.cache.cachePolicy : 'hits'
+  );
+
+  const cacheOptions: CacheOptions & { preset?: RulePreset } = typeof options?.cache === 'object'
+    ? { namespace: options?.namespace, cachePolicy, preset, ...options.cache }
+    : { namespace: options?.namespace, cachePolicy, preset };
+
+  const cache = enableCache ? new PreRouteCache<TRole>(cacheOptions) : null;
+  return { cache, cachePolicy, preset };
+}
+
+export function wireComponents<TRole extends string = SpecialistRole>(
+  options?: PreRouterOptions<TRole>
+) {
+  return {
+    adapter: options?.adapter,
+    classifier: options?.classifier ?? classifyPreRoute,
+    sampleRate: options?.sampleRate ?? 1.0
+  };
+}
+
 /**
  * Creates a Stage-0 Pre-Router instance configured with an optional LRU cache,
  * pluggable cache adapter, non-blocking sampled telemetry tap, and rule heuristics.
@@ -167,22 +260,23 @@ export class PreRouteCache<TRole extends string = SpecialistRole> {
 export function createPreRouter<TRole extends string = SpecialistRole>(
   options?: PreRouterOptions<TRole>
 ): PreRouter<TRole> {
-  const enableCache = options?.cache !== false;
-  const preset: RulePreset = options?.preset ?? 'structure';
-  const cachePolicy: CachePolicy = options?.cachePolicy ?? (
-    typeof options?.cache === 'object' && options.cache.cachePolicy ? options.cache.cachePolicy : 'hits'
-  );
+  validatePreRouterOptions(options);
+  const { cache, cachePolicy, preset } = buildCache(options);
+  const { adapter, classifier, sampleRate } = wireComponents(options);
 
-  const cacheOptions: CacheOptions & { preset?: RulePreset } | undefined = typeof options?.cache === 'object'
-    ? { namespace: options?.namespace, cachePolicy, preset, ...options.cache }
-    : { namespace: options?.namespace, cachePolicy, preset };
-
-  const cache = enableCache 
-    ? new PreRouteCache<TRole>(cacheOptions)
-    : null;
-
-  const adapter = options?.adapter;
-  const sampleRate = options?.sampleRate ?? 1.0;
+  /**
+   * Invokes the user-supplied `onError` callback and propagates any exception
+   * thrown by the handler to the caller after logging.
+   */
+  function notifyError(err: unknown, context: 'telemetry' | 'adapter_get' | 'adapter_set'): void {
+    if (!options?.onError) return;
+    try {
+      options.onError(err, context);
+    } catch (handlerErr) {
+      console.error('[krusch-pre-router] onError handler threw:', handlerErr);
+      throw handlerErr;
+    }
+  }
 
   function dispatchTelemetry(prompt: Message[] | string, result: PreRouteResult<TRole>, fromCache: boolean): void {
     if (!options?.onRoute) return;
@@ -220,9 +314,19 @@ export function createPreRouter<TRole extends string = SpecialistRole>(
         promptLength,
         promptSnippet: snippet
       });
-    } catch {
-      // Non-blocking: swallow telemetry listener errors so pre-router execution is never interrupted
+    } catch (err) {
+      // Non-blocking: notify optional error observer without interrupting pre-router execution
+      notifyError(err, 'telemetry');
     }
+  }
+
+  function isPromise<T = unknown>(value: unknown): value is Promise<T> {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'then' in value &&
+      typeof (value as { then?: unknown }).then === 'function'
+    );
   }
 
   return {
@@ -246,8 +350,8 @@ export function createPreRouter<TRole extends string = SpecialistRole>(
 
         try {
           const adapterResult = adapter.get(key);
-          if (adapterResult && typeof (adapterResult as any).then !== 'function') {
-            const syncResult = adapterResult as PreRouteResult<TRole>;
+          if (adapterResult && !isPromise(adapterResult)) {
+            const syncResult: PreRouteResult<TRole> = adapterResult;
             if (syncResult) {
               if (cache) {
                 cache.set(messages, syncResult);
@@ -259,13 +363,14 @@ export function createPreRouter<TRole extends string = SpecialistRole>(
               };
             }
           }
-        } catch {
-          // Swallow adapter check errors and fall through to cold classification
+        } catch (err) {
+          // Notify optional observer and fall through to cold classification
+          notifyError(err, 'adapter_get');
         }
       }
 
       // 3. Cold syntactic classification
-      const result = classifyPreRoute(messages, options);
+      const result = classifier(messages, options);
 
       // 4. Memoize according to cachePolicy
       if (cache) {
@@ -277,9 +382,12 @@ export function createPreRouter<TRole extends string = SpecialistRole>(
           ? messages.map(m => `${m.role}:${m.content}`).join('\n')
           : messages;
         try {
-          adapter.set(key, result);
-        } catch {
-          // Swallow adapter store errors
+          const maybePromise = adapter.set(key, result);
+          if (isPromise(maybePromise)) {
+            maybePromise.catch(err => notifyError(err, 'adapter_set'));
+          }
+        } catch (err) {
+          notifyError(err, 'adapter_set');
         }
       }
 
@@ -321,13 +429,14 @@ export function createPreRouter<TRole extends string = SpecialistRole>(
             dispatchTelemetry(messages, hitResult, true);
             return hitResult;
           }
-        } catch {
-          // Swallow adapter errors and fall through to cold classification
+        } catch (err) {
+          // Notify optional observer and fall through to cold classification
+          notifyError(err, 'adapter_get');
         }
       }
 
       // 3. Cold syntactic classification
-      const result = classifyPreRoute(messages, options);
+      const result = classifier(messages, options);
 
       // 4. Memoize according to cachePolicy
       if (cache) {
@@ -340,8 +449,8 @@ export function createPreRouter<TRole extends string = SpecialistRole>(
           : messages;
         try {
           await adapter.set(key, result);
-        } catch {
-          // Swallow adapter store errors
+        } catch (err) {
+          notifyError(err, 'adapter_set');
         }
       }
 
@@ -357,7 +466,7 @@ export function createPreRouter<TRole extends string = SpecialistRole>(
       cache?.clear();
       if (adapter?.clear) {
         const res = adapter.clear();
-        if (res && typeof (res as any).then === 'function') {
+        if (isPromise(res)) {
           return res;
         }
       }
