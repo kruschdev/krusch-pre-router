@@ -331,6 +331,14 @@ npm run bench
 * **Cache Invalidation & Isolation**: Cache keys invalidate across `RULES_VERSION` bumps; namespaces isolate multi-tenant routers.
 * **Bounded Regex Linear Audit**: Proves every rule in `RULE_CATALOG` executes in `<2ms` on worst-case 8KB adversarial inputs.
 
+### Downstream Multi-Tier Cascade Integration ([`krusch-cascade-router`](https://github.com/kruschdev/krusch-cascade-router))
+
+When paired upstream of [`krusch-cascade-router`](https://github.com/kruschdev/krusch-cascade-router) (`8K` `snowflake-arctic-embed2` semantic centroids + streaming SSE logprob/loop abort + deterministic failure-classified retries), Stage-0 interception delivers top-ranked accuracy-cost Pareto performance across external multi-model benchmarks (all raw SHA-256 per-query logs published at [`krush420/sovereign-g4-benchmarks`](https://huggingface.co/datasets/krush420/sovereign-g4-benchmarks)):
+
+* **Official RouteWorks `RouterArena` (`8,400` Qs + `420` Robustness, [PR #169](https://github.com/RouteWorks/RouterArena/pull/169))**: **Rank #1 Global (`0.7883` Workflow Score)** — **`80.72%` accuracy at `$0.2117 / 1K` queries** (`90.48%` robustness, `$0.00` Stage-0 CPU routing tax).
+* **Official ACL 2026 `NPULH/LLMRouterBench` (`12,566` Prompts × `13` Frontier LLMs, incl. unseen OOD `HLE` & `ARC-AGI`)**: **Rank #1 Lowest Pareto Distance (`0.4269`) across all 10 policies on `all_test` (`n = 5,563`)** — **`42.78%` Micro / `57.78%` Macro Acc at `$14.39 / 1K` (`-83.95%` cost** vs. `gpt-5` `$89.62 / 1K`), beating `RouteLLM`, `KNN`, `MLP`, and `RouterDC` on unseen OOD (`25.25%` `ARC-AGI` vs. `8.75%` `RouteLLM`), while zero-shot L1 dispatches in **`42.5 µs`** (`AIQ = 0.5653` on `id_test` with `0` training labels).
+* **Hermetic 96GB Blackwell G4 Live SSE & 6-Language Agentic `Polyglot` (`n = 240` Trajectories)**: Streaming SSE logprob/loop abort lifts `7B` accuracy **`+11.93 pp`** while cutting `120B` TTFT by **`-48.0%`** (`1,694.5ms → 880.7ms`); multi-step agentic routing achieves **`100.0%` `Pass@2` parity (`51.67%`)** with `static_heavy_120b` and **`+30.00 pp` over LLM preflight (`21.67%`)** at **`0.395ms` router overhead (`1,442x` faster than LLM preflight)**.
+
 ---
 
 ## 📄 License
